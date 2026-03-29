@@ -569,9 +569,17 @@ async function addTransaction() {
 }
 
 function renderAuthState() {
+  closeModal('categoryModal');
+  closeModal('transactionModal');
+
   if (el.authView) el.authView.hidden = false;
   if (el.signupView) el.signupView.hidden = false;
   if (el.appView) el.appView.hidden = true;
+
+  if (el.txCategory) el.txCategory.innerHTML = '<option value="">Selecione</option>';
+  if (el.editTxCategory) el.editTxCategory.innerHTML = '<option value="">Selecione</option>';
+  if (el.budgetsTable) el.budgetsTable.innerHTML = '';
+  if (el.transactionsTable) el.transactionsTable.innerHTML = '';
 }
 
 function renderApp() {
@@ -1057,6 +1065,9 @@ function showAppMessage(message, type = 'info') {
 }
 
 function resetStateAfterLogout() {
+  closeModal('categoryModal');
+  closeModal('transactionModal');
+
   state.user = null;
   state.profile = null;
   state.households = [];
