@@ -16,6 +16,8 @@ const state = {
   editingBudgetId: null,
   editingTransactionId: null,
   onboardingAutoShown: false,
+  onboardingStep: 1,
+  activeScreen: 'overview',
 };
 
 const el = {
@@ -81,6 +83,20 @@ const el = {
   btnOpenOnboarding: byId('btnOpenOnboarding'),
   onboardingModal: byId('onboardingModal'),
   btnStartOnboarding: byId('btnStartOnboarding'),
+  onboardingStepBadge: byId('onboardingStepBadge'),
+  onboardingStepTitle: byId('onboardingStepTitle'),
+  onboardingStepDescription: byId('onboardingStepDescription'),
+  onboardingStep1: byId('onboardingStep1'),
+  onboardingStep2: byId('onboardingStep2'),
+  onboardingStep3: byId('onboardingStep3'),
+  onboardingHouseholdName: byId('onboardingHouseholdName'),
+  btnOnboardingCreateHousehold: byId('btnOnboardingCreateHousehold'),
+  onboardingCategoryName: byId('onboardingCategoryName'),
+  onboardingCategoryScope: byId('onboardingCategoryScope'),
+  onboardingCategoryCurrency: byId('onboardingCategoryCurrency'),
+  onboardingBudgetAmount: byId('onboardingBudgetAmount'),
+  btnOnboardingCreateCategory: byId('btnOnboardingCreateCategory'),
+  btnOnboardingGoTransactions: byId('btnOnboardingGoTransactions'),
   activeHouseholdCard: byId('activeHouseholdCard'),
   activeHouseholdName: byId('activeHouseholdName'),
   activeHouseholdId: byId('activeHouseholdId'),
@@ -141,9 +157,16 @@ function bindEvents() {
   bindClick('btnAddTransaction', addTransaction);
   bindClick('btnSaveCategoryEdit', saveCategoryEdit);
   bindClick('btnSaveTransactionEdit', saveTransactionEdit);
-  bindClick('btnOpenOnboarding', () => openModal('onboardingModal'));
+  bindClick('btnOpenOnboarding', () => { state.onboardingStep = 1; renderOnboardingStep(); openModal('onboardingModal'); });
   bindClick('btnStartOnboarding', startOnboarding);
+  bindClick('btnOnboardingCreateHousehold', createHouseholdFromOnboarding);
+  bindClick('btnOnboardingCreateCategory', createCategoryFromOnboarding);
+  bindClick('btnOnboardingGoTransactions', finishOnboarding);
   bindClick('btnCopyHouseholdId', copyActiveHouseholdId);
+
+  document.querySelectorAll('[data-screen-target]').forEach((node) => {
+    node.addEventListener('click', () => setActiveScreen(node.dataset.screenTarget));
+  });
 
   if (el.selectedMonth) {
     el.selectedMonth.addEventListener('change', async (e) => {
@@ -404,6 +427,58 @@ async function loadBudgetsAndTransactions() {
   state.transactions = transactionsRes.data || [];
 }
 
+async function createHouseholdRecord(name) {
+  const { data: houseData, error: houseError } = await supabase
+    .from('households')
+    .insert([{ name, created_by: state.user.id }])
+    .select()
+    .single();
+
+  if (houseError) throw houseError;
+
+  const { error: memberError } = await supabase.from('household_members').insert([
+    { household_id: houseData.id, user_id: state.user.id, role: 'owner' },
+  ]);
+
+  if (memberError && !isDuplicateKey(memberError)) throw memberError;
+
+  state.activeHouseholdId = houseData.id;
+  state.selectedView = 'household';
+  await loadAll();
+  renderApp();
+  return houseData;
+}
+
+async function createCategoryBudgetRecord({ name, ownerScope, currency, budgetAmount }) {
+  const { scope, owner_user_id } = resolveScopeSelection(ownerScope);
+  const year_month = `${state.selectedMonth}-01`;
+
+  const { data: categoryData, error: categoryError } = await supabase
+    .from('categories')
+    .insert([{ household_id: state.activeHouseholdId, owner_user_id, name, scope }])
+    .select()
+    .single();
+
+  if (categoryError) throw categoryError;
+
+  const { error: budgetError } = await supabase.from('monthly_budgets').insert([
+    {
+      household_id: state.activeHouseholdId,
+      category_id: categoryData.id,
+      owner_user_id,
+      year_month,
+      amount: budgetAmount,
+      currency,
+    },
+  ]);
+
+  if (budgetError) throw budgetError;
+
+  await loadBudgetsAndTransactions();
+  renderApp();
+  return categoryData;
+}
+
 async function createHousehold() {
   clearMessages();
 
@@ -413,38 +488,36 @@ async function createHousehold() {
     return;
   }
 
-  const { data: houseData, error: houseError } = await supabase
-    .from('households')
-    .insert([{ name, created_by: state.user.id }])
-    .select()
-    .single();
-
-  if (houseError) {
-    showAppMessage(mapSupabaseError(houseError), 'error');
-    return;
+  try {
+    const houseData = await createHouseholdRecord(name);
+    if (el.householdName) el.householdName.value = '';
+    showAppMessage(`Casa criada com sucesso. ID da casa: ${houseData.id}`, 'success');
+  } catch (error) {
+    showAppMessage(mapSupabaseError(error), 'error');
   }
-
-  const { error: memberError } = await supabase.from('household_members').insert([
-    {
-      household_id: houseData.id,
-      user_id: state.user.id,
-      role: 'owner',
-    },
-  ]);
-
-  if (memberError && !isDuplicateKey(memberError)) {
-    showAppMessage(mapSupabaseError(memberError), 'error');
-    return;
-  }
-
-  state.activeHouseholdId = houseData.id;
-  state.selectedView = 'household';
-  if (el.householdName) el.householdName.value = '';
-
-  await loadAll();
-  renderApp();
-  showAppMessage(`Casa criada com sucesso. ID da casa: ${houseData.id}`, 'success');
 }
+
+async function createHouseholdFromOnboarding() {
+  clearMessages();
+  const name = valueOf(el.onboardingHouseholdName);
+
+  if (!name) {
+    showAppMessage('Digite o nome da casa para continuar.', 'error');
+    return;
+  }
+
+  try {
+    const houseData = await createHouseholdRecord(name);
+    if (el.onboardingHouseholdName) el.onboardingHouseholdName.value = '';
+    state.onboardingStep = 2;
+    renderOnboardingStep();
+    if (el.onboardingCategoryName) el.onboardingCategoryName.focus();
+    showAppMessage(`Casa criada com sucesso. ID da casa: ${houseData.id}`, 'success');
+  } catch (error) {
+    showAppMessage(mapSupabaseError(error), 'error');
+  }
+}
+
 
 async function joinHousehold() {
   clearMessages();
@@ -500,51 +573,53 @@ async function createCategoryAndBudget() {
     return;
   }
 
-  const { scope, owner_user_id } = resolveScopeSelection(ownerScope);
-  const year_month = `${state.selectedMonth}-01`;
-
-  const { data: categoryData, error: categoryError } = await supabase
-    .from('categories')
-    .insert([
-      {
-        household_id: state.activeHouseholdId,
-        owner_user_id,
-        name,
-        scope,
-      },
-    ])
-    .select()
-    .single();
-
-  if (categoryError) {
-    showAppMessage(mapSupabaseError(categoryError), 'error');
-    return;
+  try {
+    await createCategoryBudgetRecord({ name, ownerScope, currency, budgetAmount });
+    if (el.categoryName) el.categoryName.value = '';
+    if (el.budgetAmount) el.budgetAmount.value = '';
+    showAppMessage('Categoria e limite mensal criados com sucesso.', 'success');
+  } catch (error) {
+    showAppMessage(mapSupabaseError(error), 'error');
   }
-
-  const { error: budgetError } = await supabase.from('monthly_budgets').insert([
-    {
-      household_id: state.activeHouseholdId,
-      category_id: categoryData.id,
-      owner_user_id,
-      year_month,
-      amount: budgetAmount,
-      currency,
-    },
-  ]);
-
-  if (budgetError) {
-    showAppMessage(mapSupabaseError(budgetError), 'error');
-    return;
-  }
-
-  if (el.categoryName) el.categoryName.value = '';
-  if (el.budgetAmount) el.budgetAmount.value = '';
-
-  await loadBudgetsAndTransactions();
-  renderDashboard();
-  renderCategoryOptions();
-  showAppMessage('Categoria e limite mensal criados com sucesso.', 'success');
 }
+
+async function createCategoryFromOnboarding() {
+  clearMessages();
+
+  if (!state.activeHouseholdId) {
+    showAppMessage('Crie a casa primeiro para seguir.', 'error');
+    state.onboardingStep = 1;
+    renderOnboardingStep();
+    return;
+  }
+
+  const name = valueOf(el.onboardingCategoryName);
+  const ownerScope = el.onboardingCategoryScope?.value;
+  const currency = el.onboardingCategoryCurrency?.value;
+  const budgetAmount = parseCurrencyInput(valueOf(el.onboardingBudgetAmount));
+
+  if (!name) {
+    showAppMessage('Digite a primeira categoria para continuar.', 'error');
+    return;
+  }
+
+  if (Number.isNaN(budgetAmount) || budgetAmount < 0) {
+    showAppMessage('Digite um limite mensal válido.', 'error');
+    return;
+  }
+
+  try {
+    await createCategoryBudgetRecord({ name, ownerScope, currency, budgetAmount });
+    if (el.onboardingCategoryName) el.onboardingCategoryName.value = '';
+    if (el.onboardingBudgetAmount) el.onboardingBudgetAmount.value = '';
+    state.onboardingStep = 3;
+    renderOnboardingStep();
+    showAppMessage('Primeira categoria criada com sucesso.', 'success');
+  } catch (error) {
+    showAppMessage(mapSupabaseError(error), 'error');
+  }
+}
+
 
 async function addTransaction() {
   clearMessages();
@@ -618,11 +693,55 @@ function renderApp() {
 
   renderHouseholds();
   renderActiveHouseholdCard();
+  renderScreenNavigation();
   renderScopeFilters();
   renderOwnerScopeOptions();
+  renderOnboardingStep();
   renderCategoryOptions();
   renderDashboard();
   maybeAutoOpenOnboarding();
+}
+
+function setActiveScreen(screen) {
+  state.activeScreen = screen;
+  renderScreenNavigation();
+}
+
+function renderScreenNavigation() {
+  document.querySelectorAll('[data-screen-target]').forEach((node) => {
+    node.classList.toggle('active', node.dataset.screenTarget === state.activeScreen);
+  });
+
+  document.querySelectorAll('[data-screen]').forEach((node) => {
+    node.hidden = node.dataset.screen !== state.activeScreen;
+  });
+}
+
+function renderOnboardingStep() {
+  if (!el.onboardingModal) return;
+
+  const step = state.onboardingStep || 1;
+  const configs = {
+    1: { badge: 'Passo 1 de 3', title: 'Crie sua casa', desc: 'Dê um nome para a casa. Depois o SOMA guarda o ID para você convidar a outra pessoa em Configurações.' },
+    2: { badge: 'Passo 2 de 3', title: 'Cadastre sua primeira categoria', desc: 'Escolha onde essa categoria vive: em uma pessoa específica ou no compartilhado.' },
+    3: { badge: 'Passo 3 de 3', title: 'Agora é com você', desc: 'Com a estrutura pronta, o próximo passo é começar a lançar os gastos do mês.' },
+  };
+
+  const meta = configs[step] || configs[1];
+  if (el.onboardingStepBadge) el.onboardingStepBadge.textContent = meta.badge;
+  if (el.onboardingStepTitle) el.onboardingStepTitle.textContent = meta.title;
+  if (el.onboardingStepDescription) el.onboardingStepDescription.textContent = meta.desc;
+
+  if (el.onboardingStep1) el.onboardingStep1.hidden = step !== 1;
+  if (el.onboardingStep2) el.onboardingStep2.hidden = step !== 2;
+  if (el.onboardingStep3) el.onboardingStep3.hidden = step !== 3;
+}
+
+function finishOnboarding() {
+  window.localStorage.setItem(getOnboardingStorageKey(), 'seen');
+  closeModal('onboardingModal');
+  setActiveScreen('transactions');
+  if (el.txAmount) el.txAmount.focus();
 }
 
 function renderHouseholds() {
@@ -686,18 +805,31 @@ async function copyActiveHouseholdId() {
 function renderScopeFilters() {
   if (!el.scopeFilters) return;
 
-  el.scopeFilters.innerHTML = '';
   const items = [
-    { key: 'household', label: 'Casa' },
-    ...state.householdUsers.map((user) => ({ key: `member:${user.user_id}`, label: user.full_name })),
-    { key: 'shared', label: 'Compartilhado' },
+    {
+      key: 'household',
+      label: 'Casa',
+      description: 'Mistura tudo sem esconder a origem: individual de cada pessoa + compartilhado.',
+    },
+    ...state.householdUsers.map((user) => ({
+      key: `member:${user.user_id}`,
+      label: user.full_name,
+      description: `Mostra só categorias e gastos que pertencem a ${user.full_name}.`,
+    })),
+    {
+      key: 'shared',
+      label: 'Compartilhado',
+      description: 'Mostra apenas o que é dos dois, como contas e despesas em comum.',
+    },
   ];
+
+  el.scopeFilters.innerHTML = '';
 
   items.forEach((item) => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = `scope-chip ${state.selectedView === item.key ? 'active' : ''}`;
-    button.textContent = item.label;
+    button.className = `scope-card ${state.selectedView === item.key ? 'active' : ''}`;
+    button.innerHTML = `<strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.description)}</span>`;
     button.addEventListener('click', () => {
       state.selectedView = item.key;
       renderDashboard();
@@ -711,11 +843,16 @@ function renderOwnerScopeOptions() {
   const options = buildOwnerScopeOptions();
   if (el.categoryOwnerScope) el.categoryOwnerScope.innerHTML = options;
   if (el.editCategoryOwnerScope) el.editCategoryOwnerScope.innerHTML = options;
+  if (el.onboardingCategoryScope) el.onboardingCategoryScope.innerHTML = options;
 
   if (el.categoryOwnerScope && state.selectedView.startsWith('member:')) {
     el.categoryOwnerScope.value = state.selectedView.replace('member:', '');
   } else if (el.categoryOwnerScope && state.selectedView === 'shared') {
     el.categoryOwnerScope.value = 'shared';
+  }
+
+  if (el.onboardingCategoryScope && !el.onboardingCategoryScope.value) {
+    el.onboardingCategoryScope.value = 'shared';
   }
 }
 
@@ -1117,14 +1254,24 @@ function maybeAutoOpenOnboarding() {
   if (!el.onboardingModal || !state.user || state.onboardingAutoShown) return;
   const seenKey = getOnboardingStorageKey();
   if (window.localStorage.getItem(seenKey) === 'seen') return;
+  if (state.households.length > 0) return;
 
   state.onboardingAutoShown = true;
+  state.onboardingStep = 1;
+  renderOnboardingStep();
   openModal('onboardingModal');
 }
 
 function startOnboarding() {
-  closeModal('onboardingModal');
-  if (el.householdName) el.householdName.focus();
+  state.onboardingStep = 1;
+  renderOnboardingStep();
+  if (!state.activeHouseholdId) {
+    if (el.onboardingHouseholdName) el.onboardingHouseholdName.focus();
+    return;
+  }
+  state.onboardingStep = 2;
+  renderOnboardingStep();
+  if (el.onboardingCategoryName) el.onboardingCategoryName.focus();
 }
 
 function getOnboardingStorageKey() {
@@ -1178,6 +1325,8 @@ function resetStateAfterLogout() {
   state.editingBudgetId = null;
   state.editingTransactionId = null;
   state.onboardingAutoShown = false;
+  state.onboardingStep = 1;
+  state.activeScreen = 'overview';
 }
 
 function resolveScopeSelection(value) {
