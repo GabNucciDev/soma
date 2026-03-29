@@ -120,19 +120,12 @@
               <div>
                 <span class="eyebrow">Visão financeira</span>
                 <h3 id="currentViewTitle">Visão da casa</h3>
-                <p class="section-subtitle" id="currentViewSubtitle">Escolha qual caixa financeira quer analisar agora. O SOMA separa casa, pessoas e compartilhado.</p>
+                <p class="section-subtitle" id="currentViewSubtitle">Resumo do mês, leitura do recorte atual e próximas ações.</p>
               </div>
             </div>
 
-            <div class="view-guide-callout inner-card">
-              <strong>Como ler isso sem se perder</strong>
-              <p>
-                <b>Casa</b> mostra o quadro completo. <b>Cada pessoa</b> mostra só o que pertence a ela.
-                <b>Compartilhado</b> mostra apenas o que é dos dois. Escolha uma visão abaixo para trocar o recorte do mês.
-              </p>
-            </div>
-
-            <div class="scope-filters" id="scopeFilters"></div>
+            <div class="scope-tabs" id="scopeFilters"></div>
+            <p class="view-tab-caption" id="viewTabCaption">Você está vendo a casa inteira: individual + compartilhado.</p>
           </section>
 
           <section class="stats-grid" data-screen="management">
@@ -158,13 +151,45 @@
             </article>
           </section>
 
+          <section class="decision-layout" data-screen="management">
+            <article class="surface decision-card decision-status-card" id="decisionStatusCard">
+              <div class="decision-head">
+                <span class="eyebrow">Status do mês</span>
+                <span class="status-pill healthy" id="decisionStatusPill">Saudável</span>
+              </div>
+              <strong class="decision-title" id="decisionStatusTitle">Orçamento sob controle</strong>
+              <p class="decision-copy" id="decisionStatusSummary">O ritmo de gasto está compatível com o momento do mês.</p>
+              <div class="decision-meta-row">
+                <span id="decisionMonthProgress">Mês percorrido: 0%</span>
+                <span id="decisionSpendProgress">Orçamento usado: 0%</span>
+              </div>
+            </article>
+
+            <article class="surface decision-card">
+              <div class="decision-head">
+                <span class="eyebrow">Alertas do momento</span>
+              </div>
+              <ul class="decision-list" id="decisionAlerts">
+                <li class="decision-list-item muted">Nenhum alerta por enquanto.</li>
+              </ul>
+            </article>
+
+            <article class="surface decision-card">
+              <div class="decision-head">
+                <span class="eyebrow">Próxima ação sugerida</span>
+              </div>
+              <strong class="decision-title" id="decisionActionTitle">Continue registrando o mês</strong>
+              <p class="decision-copy" id="decisionActionBody">Mantenha os lançamentos em dia para o SOMA continuar lendo o orçamento com precisão.</p>
+            </article>
+          </section>
+
           <div class="management-panels" data-screen="management">
             <section class="surface section-block" id="categoriesPanel">
               <div class="section-head compact-head">
                 <div>
                   <span class="eyebrow">Cadastro</span>
                   <h3>Criar categoria e limite do mês</h3>
-                  <p class="section-subtitle">Defina primeiro a caixa financeira onde essa categoria vive.</p>
+                  <p class="section-subtitle">Defina em qual recorte essa categoria existe e qual limite mensal ela deve respeitar.</p>
                 </div>
               </div>
 
@@ -204,7 +229,7 @@
                 <div>
                   <span class="eyebrow">Lançamentos</span>
                   <h3>Adicionar gasto</h3>
-                  <p class="section-subtitle">Escolha a categoria certa e registre o gasto do mês.</p>
+                  <p class="section-subtitle">Registre o gasto certo no recorte certo para a leitura do mês ficar confiável.</p>
                 </div>
               </div>
 
@@ -463,12 +488,16 @@
 
           <div id="onboardingStep3" class="onboarding-step-pane" hidden>
             <div class="onboarding-finish-card inner-card">
-              <strong>Estrutura pronta.</strong>
-              <p>Agora é com você: pode começar a lançar os gastos do mês. A área de Gestão financeira concentra visão, categorias, lançamentos, orçamento e histórico em uma única navegação.</p>
+              <strong>Próximo passo: lançar o primeiro gasto.</strong>
+              <ul class="onboarding-checklist">
+                <li>Abra a área de Gestão financeira</li>
+                <li>Escolha a categoria certa</li>
+                <li>Registre o valor do primeiro gasto do mês</li>
+              </ul>
             </div>
             <div class="modal-actions">
               <button class="btn btn-secondary" type="button" data-close-modal="onboardingModal">Fechar</button>
-              <button class="btn btn-primary" type="button" id="btnOnboardingGoTransactions">Ir para gestão</button>
+              <button class="btn btn-primary" type="button" id="btnOnboardingGoTransactions">Lançar primeiro gasto</button>
             </div>
           </div>
         </div>
