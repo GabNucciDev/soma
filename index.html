@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SOMA</title>
-  <meta name="description" content="SOMA — gestão financeira de casal e família, com orçamento mensal, categorias e lançamentos em um só lugar." />
+  <meta name="description" content="SOMA — gestão financeira de casal e família, com visão da casa, do individual e do compartilhado." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -23,17 +23,17 @@
 
         <div class="hero-copy">
           <span class="eyebrow">Visibilidade total sobre o dinheiro da casa</span>
-          <h1>O jeito mais simples de acompanhar orçamento, categorias e gastos do mês.</h1>
+          <h1>Entenda o que é seu, o que é da outra pessoa e o que é compartilhado.</h1>
           <p>
-            Saia da planilha improvisada. No SOMA, cada pessoa entra com sua conta,
-            participa da mesma casa e acompanha o mês com mais clareza e menos atrito.
+            O SOMA organiza a casa em três caixas financeiras: individual, da outra pessoa e compartilhado.
+            Assim vocês acompanham o mês com mais clareza e menos atrito.
           </p>
         </div>
 
         <div class="feature-list">
-          <div class="feature-chip">Controle mensal</div>
-          <div class="feature-chip">Categorias pessoais e compartilhadas</div>
-          <div class="feature-chip">Histórico de lançamentos</div>
+          <div class="feature-chip">Visão da casa</div>
+          <div class="feature-chip">Escopos individuais</div>
+          <div class="feature-chip">Compartilhado do casal</div>
         </div>
       </div>
 
@@ -46,7 +46,7 @@
 
           <div class="auth-heading">
             <h3>Entrar</h3>
-            <p>Use seu e-mail e senha para acessar sua casa e seu mês atual.</p>
+            <p>Use seu e-mail e sua senha para entrar na sua casa financeira.</p>
           </div>
 
           <div class="field">
@@ -65,7 +65,7 @@
           </div>
 
           <div class="auth-footer-box">
-            <p>Primeiro acesso? Crie sua conta em uma tela separada, sem misturar login com cadastro.</p>
+            <p>Ainda não tem conta? Crie aqui.</p>
           </div>
 
           <div class="auth-switch">
@@ -81,7 +81,7 @@
           <div class="topbar-left">
             <div class="brand-inline">
               <span class="brand-inline-name">SOMA</span>
-              <span class="brand-inline-subtitle">Gestão financeira de casal e família</span>
+              <span class="brand-inline-subtitle">Casa, individual e compartilhado</span>
             </div>
             <div class="user-inline">
               <strong id="currentUserName">Usuário</strong>
@@ -113,9 +113,11 @@
             <div class="form-card inner-card">
               <div class="field">
                 <label for="householdName">Criar nova casa</label>
-                <input id="householdName" type="text" placeholder="Ex.: Casa Gabriel & Maria" />
+                <input id="householdName" type="text" placeholder="Ex.: Casa Gabriel &amp; Maria" />
               </div>
-              <button class="btn btn-primary" id="btnCreateHousehold">Criar casa</button>
+              <div class="form-actions">
+                <button class="btn btn-primary" id="btnCreateHousehold">Criar casa</button>
+              </div>
             </div>
 
             <div class="form-card inner-card">
@@ -123,7 +125,9 @@
                 <label for="joinHouseholdId">Entrar em casa existente</label>
                 <input id="joinHouseholdId" type="text" placeholder="Cole o ID da casa aqui" />
               </div>
-              <button class="btn btn-secondary" id="btnJoinHousehold">Entrar na casa</button>
+              <div class="form-actions">
+                <button class="btn btn-secondary" id="btnJoinHousehold">Entrar na casa</button>
+              </div>
             </div>
           </div>
 
@@ -133,26 +137,38 @@
           </div>
         </section>
 
+        <section class="surface section-block">
+          <div class="section-head compact-head">
+            <div>
+              <span class="eyebrow">Visão financeira</span>
+              <h3 id="currentViewTitle">Visão da casa</h3>
+              <p class="section-subtitle" id="currentViewSubtitle">Escolha se quer analisar a casa inteira, uma pessoa específica ou apenas o compartilhado.</p>
+            </div>
+          </div>
+
+          <div class="scope-filters" id="scopeFilters"></div>
+        </section>
+
         <section class="stats-grid">
           <article class="surface metric-card">
             <span class="metric-label">Limite do mês</span>
             <strong class="metric-value" id="totalBudget">R$ 0,00</strong>
-            <span class="metric-foot">Orçamento das categorias do mês atual.</span>
+            <span class="metric-foot">Na moeda padrão da visão atual.</span>
           </article>
           <article class="surface metric-card">
             <span class="metric-label">Gasto do mês</span>
             <strong class="metric-value" id="totalSpent">R$ 0,00</strong>
-            <span class="metric-foot">Soma dos lançamentos do mês selecionado.</span>
+            <span class="metric-foot">Somente os lançamentos da visão selecionada.</span>
           </article>
           <article class="surface metric-card">
             <span class="metric-label">Saldo do mês</span>
             <strong class="metric-value" id="totalRemaining">R$ 0,00</strong>
-            <span class="metric-foot">Quanto ainda resta dentro do orçamento.</span>
+            <span class="metric-foot">Quanto ainda resta dentro dessa caixa financeira.</span>
           </article>
           <article class="surface metric-card">
             <span class="metric-label">Categorias ativas</span>
             <strong class="metric-value" id="totalCategories">0</strong>
-            <span class="metric-foot">Categorias com limite cadastrado para o mês.</span>
+            <span class="metric-foot">Categorias com limite no recorte atual.</span>
           </article>
         </section>
 
@@ -172,10 +188,9 @@
 
             <div class="grid grid-2">
               <div class="field">
-                <label for="categoryScope">Escopo</label>
-                <select id="categoryScope">
-                  <option value="personal">Pessoal</option>
-                  <option value="shared">Compartilhada</option>
+                <label for="categoryOwnerScope">Escopo financeiro</label>
+                <select id="categoryOwnerScope">
+                  <option value="shared">Compartilhado</option>
                 </select>
               </div>
               <div class="field">
@@ -192,7 +207,9 @@
               <input id="budgetAmount" type="text" placeholder="Ex.: 350,00" />
             </div>
 
-            <button class="btn btn-primary" id="btnCreateCategory">Salvar categoria</button>
+            <div class="form-actions">
+              <button class="btn btn-primary" id="btnCreateCategory">Salvar categoria</button>
+            </div>
           </div>
 
           <div class="surface section-block">
@@ -234,7 +251,9 @@
               <input id="txDescription" type="text" placeholder="Ex.: mercado, gasolina, aluguel" />
             </div>
 
-            <button class="btn btn-primary" id="btnAddTransaction">Salvar gasto</button>
+            <div class="form-actions">
+              <button class="btn btn-primary" id="btnAddTransaction">Salvar gasto</button>
+            </div>
           </div>
         </section>
 
@@ -243,7 +262,7 @@
             <div>
               <span class="eyebrow">Orçamento</span>
               <h3>Limites por categoria no mês</h3>
-              <p class="section-subtitle">Agora com ações de edição e exclusão.</p>
+              <p class="section-subtitle">Agora organizados por escopo financeiro, com edição e exclusão.</p>
             </div>
           </div>
           <div id="budgetsTable"></div>
@@ -254,7 +273,7 @@
             <div>
               <span class="eyebrow">Histórico</span>
               <h3>Lançamentos do mês</h3>
-              <p class="section-subtitle">Edite ou exclua gastos sem depender do banco cru.</p>
+              <p class="section-subtitle">Edite ou exclua gastos dentro da visão selecionada.</p>
             </div>
           </div>
           <div id="transactionsTable"></div>
@@ -278,10 +297,9 @@
 
           <div class="grid grid-2">
             <div class="field">
-              <label for="editCategoryScope">Escopo</label>
-              <select id="editCategoryScope">
-                <option value="personal">Pessoal</option>
-                <option value="shared">Compartilhada</option>
+              <label for="editCategoryOwnerScope">Escopo financeiro</label>
+              <select id="editCategoryOwnerScope">
+                <option value="shared">Compartilhado</option>
               </select>
             </div>
             <div class="field">
