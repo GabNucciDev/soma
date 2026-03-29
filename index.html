@@ -793,7 +793,7 @@
         <div class="bars" id="barsList"></div>
       </section>
 
-      <section class="panel panel-8">
+      <section class="panel panel-full">
         <div class="panel-header">
           <div>
             <h2>Detalhamento por categoria</h2>
@@ -819,7 +819,7 @@
         </div>
       </section>
 
-      <section class="panel panel-4">
+      <section class="panel panel-full">
         <div class="panel-header">
           <div>
             <h2>Insights automáticos</h2>
@@ -834,16 +834,18 @@
   <script>
     const CONFIG = {
       locale: 'pt-BR',
-      currency: 'EUR',
+      defaultCurrency: 'EUR',
       refreshMinutes: 10,
       spreadsheetId: '17F67tetUv3_K7rt5kbUJ1iJkehssOcCtprwjc6kWUxU',
       sources: {
         maria: {
           label: 'Maria',
+          currency: 'EUR',
           csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRFhyn1x146qLzzfS4DVnDM8FoKWx50PKv89GXENwcmFvnIL6uD-K4LO_l9GrfHgkp6gb3P36JBFdCY/pub?output=csv'
         },
         gabriel: {
           label: 'Gabriel',
+          currency: 'BRL',
           sheetName: 'gabriel'
         }
       }
@@ -860,10 +862,37 @@
 
     const $ = (selector) => document.querySelector(selector);
 
-    function formatCurrency(value) {
+    function getSourceCurrency(sourceKey) {
+      return CONFIG.sources[sourceKey]?.currency || CONFIG.defaultCurrency;
+    }
+
+    function getLoadedCurrencies() {
+      const keys = Object.keys(state.datasets);
+      return [...new Set(keys.map(getSourceCurrency).filter(Boolean))];
+    }
+
+    function hasMixedCurrencies() {
+      return getLoadedCurrencies().length > 1;
+    }
+
+    function isMixedCoupleView() {
+      return state.activeView === 'casal' && hasMixedCurrencies();
+    }
+
+    function formatCurrency(value, sourceKeyOrCurrency = null) {
+      let currency = sourceKeyOrCurrency;
+
+      if (!currency) {
+        currency = state.activeView === 'casal'
+          ? CONFIG.defaultCurrency
+          : getSourceCurrency(state.activeView);
+      } else if (CONFIG.sources[sourceKeyOrCurrency]) {
+        currency = getSourceCurrency(sourceKeyOrCurrency);
+      }
+
       return new Intl.NumberFormat(CONFIG.locale, {
         style: 'currency',
-        currency: CONFIG.currency,
+        currency,
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       }).format(Number(value || 0));
@@ -1159,6 +1188,77 @@
       };
     }
 
+    function getPressureLabel(items, totals) {
+      const critical = getCriticalCount(items);
+      const nearLimit = getNearLimitCount(items);
+
+      if (critical > 0 || totals.totalExceeded > 0 || totals.usage > 100) {
+        return {
+          value: 'Crítico',
+          sub: critical > 0
+            ? `${critical} categoria(s) já bateram ou passaram do limite.`
+            : 'O orçamento já ultrapassou o limite disponível.'
+        };
+      }
+
+      if (nearLimit > 0 || totals.usage >= 80) {
+        return {
+          value: 'Em atenção',
+          sub: nearLimit > 0
+            ? `${nearLimit} categoria(s) já passaram de 80% do limite.`
+            : 'O orçamento ainda cabe, mas a margem já apertou.'
+        };
+      }
+
+      return {
+        value: 'Saudável',
+        sub: 'Nenhuma categoria entrou em faixa de risco relevante.'
+      };
+    }
+
+    function getCoupleHealthState() {
+      const allItems = Object.values(state.datasets).flat();
+      const critical = getCriticalCount(allItems);
+      const nearLimit = getNearLimitCount(allItems);
+      const highestUsage = Math.max(0, ...Object.values(state.totals).map(total => Number(total?.usage || 0)));
+
+      if (critical > 0 || highestUsage > 100) {
+        return {
+          tone: 'bad',
+          badge: 'Crítico',
+          title: 'Há pressão real em pelo menos um dos orçamentos',
+          text: 'Como vocês usam moedas diferentes, a leitura honesta do casal é por percentual e por categoria crítica, não por soma monetária.',
+          subtitle: 'Comparação por pressão, sem misturar moedas'
+        };
+      }
+
+      if (nearLimit > 0 || highestUsage >= 80) {
+        return {
+          tone: 'warn',
+          badge: 'Em atenção',
+          title: 'Os dois orçamentos ainda cabem, mas a margem já aperta em algum ponto',
+          text: 'Aqui a métrica útil é quem está mais pressionado dentro do próprio orçamento, não quem soma mais dinheiro.',
+          subtitle: 'Comparação relativa entre Maria e Gabriel'
+        };
+      }
+
+      return {
+        tone: 'good',
+        badge: 'Saudável',
+        title: 'Os dois orçamentos ainda estão sob controle',
+        text: 'Sem conversão cambial, o painel compara pressão relativa e risco por categoria. Essa é a leitura correta para moedas diferentes.',
+        subtitle: 'Sem pressão relevante no recorte atual'
+      };
+    }
+
+    function getRenderableItems(items) {
+      if (!isMixedCoupleView()) return items;
+
+      return Object.entries(state.datasets)
+        .flatMap(([ownerKey, ownerItems]) => (ownerItems || []).map(item => ({ ...item, owner: ownerKey })))
+        .sort((a, b) => b.usage - a.usage);
+    }
+
     function renderHeader() {
       const loadedKeys = Object.keys(state.datasets);
       const loadedLabels = loadedKeys.map(key => CONFIG.sources[key]?.label || key);
@@ -1183,7 +1283,47 @@
     function renderMetricCards(items, totals) {
       const critical = getCriticalCount(items);
       const nearLimit = getNearLimitCount(items);
+
+      if (isMixedCoupleView()) {
+        const mariaTotals = state.totals.maria || buildTotals([]);
+        const gabrielTotals = state.totals.gabriel || buildTotals([]);
+        const pressure = getCoupleHealthState();
+
+        const cards = [
+          {
+            label: 'Moedas ativas',
+            value: getLoadedCurrencies().join(' + '),
+            sub: 'O consolidado em dinheiro foi desativado para não misturar euro com real.'
+          },
+          {
+            label: 'Maria · gasto',
+            value: formatCurrency(mariaTotals.totalSpent, 'maria'),
+            sub: `${formatPercent(mariaTotals.usage)} do orçamento individual comprometido.`
+          },
+          {
+            label: 'Gabriel · gasto',
+            value: formatCurrency(gabrielTotals.totalSpent, 'gabriel'),
+            sub: `${formatPercent(gabrielTotals.usage)} do orçamento individual comprometido.`
+          },
+          {
+            label: 'Status do orçamento',
+            value: pressure.badge,
+            sub: pressure.text
+          }
+        ];
+
+        $('#metricGrid').innerHTML = cards.map(card => `
+          <article class="metric">
+            <div class="metric-label">${card.label}</div>
+            <div class="metric-value">${card.value}</div>
+            <div class="metric-sub">${card.sub}</div>
+          </article>
+        `).join('');
+        return;
+      }
+
       const modeLabel = state.activeView === 'casal' ? 'consolidado do casal' : `recorte individual de ${CONFIG.sources[state.activeView]?.label || state.activeView}`;
+      const pressure = getPressureLabel(items, totals);
 
       const cards = [
         {
@@ -1204,9 +1344,9 @@
             : 'Folga ainda disponível dentro do planejamento.'
         },
         {
-          label: 'Pressão do orçamento',
-          value: `${critical} crítica(s) / ${nearLimit} em atenção`,
-          sub: 'Crítica = bateu 100%. Atenção = passou de 80%.'
+          label: 'Status do orçamento',
+          value: pressure.value,
+          sub: pressure.sub
         }
       ];
 
@@ -1220,6 +1360,38 @@
     }
 
     function renderHealth(items, totals) {
+      if (isMixedCoupleView()) {
+        const health = getCoupleHealthState();
+        const allItems = getRenderableItems(items);
+        const topPressure = getTopPressure(allItems);
+        const mariaTotals = state.totals.maria || buildTotals([]);
+        const gabrielTotals = state.totals.gabriel || buildTotals([]);
+        const progressUsage = Math.max(mariaTotals.usage || 0, gabrielTotals.usage || 0);
+
+        $('#healthDescription').textContent = 'Comparativo do casal sem soma monetária. Aqui a leitura é por percentual e risco, porque as moedas são diferentes.';
+        $('#healthBadge').className = `badge ${health.tone}`;
+        $('#healthBadge').textContent = health.badge;
+        $('#healthTitle').textContent = health.title;
+        $('#healthText').textContent = health.text;
+        $('#mainProgressBar').style.width = `${Math.min(progressUsage, 100)}%`;
+        $('#mainProgressBar').style.background = health.tone === 'bad'
+          ? 'linear-gradient(90deg, #ef4444, #ff8f8f)'
+          : health.tone === 'warn'
+            ? 'linear-gradient(90deg, #f5b340, #ffd484)'
+            : 'linear-gradient(90deg, #7cb6ff, #9ed0ff)';
+
+        $('#committedValue').textContent = `${formatCurrency(mariaTotals.totalSpent, 'maria')} · ${formatCurrency(gabrielTotals.totalSpent, 'gabriel')}`;
+        $('#availableValue').textContent = `${formatCurrency(mariaTotals.totalRemaining, 'maria')} · ${formatCurrency(gabrielTotals.totalRemaining, 'gabriel')}`;
+        $('#criticalValue').textContent = `${getCriticalCount(allItems)}`;
+        $('#topPressureValue').textContent = topPressure
+          ? `${CONFIG.sources[topPressure.owner]?.label || topPressure.owner} · ${topPressure.category} · ${formatPercent(topPressure.usage)}`
+          : '-';
+
+        $('#headlineValue').textContent = getLoadedCurrencies().join(' + ');
+        $('#headlineText').textContent = health.subtitle;
+        return;
+      }
+
       const health = getHealthState(totals, items);
       const topPressure = getTopPressure(items);
 
@@ -1253,7 +1425,6 @@
       if (state.activeView !== 'casal') {
         const activeKey = state.activeView;
         const totals = state.totals[activeKey] || buildTotals([]);
-        const health = getHealthState(state.datasets[activeKey] || [], state.datasets[activeKey] || []);
         box.innerHTML = `
           <article class="person-card">
             <div class="person-head">
@@ -1266,9 +1437,9 @@
               </div>
             </div>
             <div class="person-metrics">
-              <div class="person-metric"><span>Limite</span><strong>${formatCurrency(totals.totalLimit)}</strong></div>
-              <div class="person-metric"><span>Gasto</span><strong>${formatCurrency(totals.totalSpent)}</strong></div>
-              <div class="person-metric"><span>Saldo</span><strong>${formatCurrency(totals.totalRemaining)}</strong></div>
+              <div class="person-metric"><span>Limite</span><strong>${formatCurrency(totals.totalLimit, activeKey)}</strong></div>
+              <div class="person-metric"><span>Gasto</span><strong>${formatCurrency(totals.totalSpent, activeKey)}</strong></div>
+              <div class="person-metric"><span>Saldo</span><strong>${formatCurrency(totals.totalRemaining, activeKey)}</strong></div>
             </div>
           </article>
         `;
@@ -1277,22 +1448,25 @@
 
       const mariaTotals = state.totals.maria || buildTotals([]);
       const gabrielTotals = state.totals.gabriel || buildTotals([]);
+      const mixed = hasMixedCurrencies();
+      const mariaBase = mixed ? mariaTotals.usage : 0;
+      const gabrielBase = mixed ? gabrielTotals.usage : 0;
       const combinedSpent = mariaTotals.totalSpent + gabrielTotals.totalSpent || 0;
-      const mariaShare = combinedSpent ? (mariaTotals.totalSpent / combinedSpent) * 100 : 0;
-      const gabrielShare = combinedSpent ? (gabrielTotals.totalSpent / combinedSpent) * 100 : 0;
+      const mariaShare = mixed ? Math.min(mariaBase, 100) : (combinedSpent ? (mariaTotals.totalSpent / combinedSpent) * 100 : 0);
+      const gabrielShare = mixed ? Math.min(gabrielBase, 100) : (combinedSpent ? (gabrielTotals.totalSpent / combinedSpent) * 100 : 0);
 
       box.innerHTML = `
         <article class="person-card">
           <div class="person-head">
             <div>
-              <div class="person-name">Distribuição entre vocês</div>
-              <div class="person-summary">Isso ajuda a ver peso relativo no gasto do mês, não só o consolidado total.</div>
+              <div class="person-name">${mixed ? 'Comparação relativa entre vocês' : 'Distribuição entre vocês'}</div>
+              <div class="person-summary">${mixed ? 'Como as moedas são diferentes, a barra compara o percentual de uso do orçamento de cada um.' : 'Isso ajuda a ver peso relativo no gasto do mês, não só o consolidado total.'}</div>
             </div>
           </div>
           <div class="stack">
             <div class="share-bar">
               <div class="share-head">
-                <span>Participação no gasto do casal</span>
+                <span>${mixed ? 'Comprometimento relativo do orçamento' : 'Participação no gasto do casal'}</span>
                 <span>${formatPercent(mariaShare)} Maria · ${formatPercent(gabrielShare)} Gabriel</span>
               </div>
               <div class="share-track">
@@ -1312,9 +1486,9 @@
             <div class="badge ${getHealthState(mariaTotals, state.datasets.maria || []).tone}">${getHealthState(mariaTotals, state.datasets.maria || []).badge}</div>
           </div>
           <div class="person-metrics">
-            <div class="person-metric"><span>Limite</span><strong>${formatCurrency(mariaTotals.totalLimit)}</strong></div>
-            <div class="person-metric"><span>Gasto</span><strong>${formatCurrency(mariaTotals.totalSpent)}</strong></div>
-            <div class="person-metric"><span>Saldo</span><strong>${formatCurrency(mariaTotals.totalRemaining)}</strong></div>
+            <div class="person-metric"><span>Limite</span><strong>${formatCurrency(mariaTotals.totalLimit, 'maria')}</strong></div>
+            <div class="person-metric"><span>Gasto</span><strong>${formatCurrency(mariaTotals.totalSpent, 'maria')}</strong></div>
+            <div class="person-metric"><span>Saldo</span><strong>${formatCurrency(mariaTotals.totalRemaining, 'maria')}</strong></div>
           </div>
         </article>
 
@@ -1327,9 +1501,9 @@
             <div class="badge ${getHealthState(gabrielTotals, state.datasets.gabriel || []).tone}">${getHealthState(gabrielTotals, state.datasets.gabriel || []).badge}</div>
           </div>
           <div class="person-metrics">
-            <div class="person-metric"><span>Limite</span><strong>${formatCurrency(gabrielTotals.totalLimit)}</strong></div>
-            <div class="person-metric"><span>Gasto</span><strong>${formatCurrency(gabrielTotals.totalSpent)}</strong></div>
-            <div class="person-metric"><span>Saldo</span><strong>${formatCurrency(gabrielTotals.totalRemaining)}</strong></div>
+            <div class="person-metric"><span>Limite</span><strong>${formatCurrency(gabrielTotals.totalLimit, 'gabriel')}</strong></div>
+            <div class="person-metric"><span>Gasto</span><strong>${formatCurrency(gabrielTotals.totalSpent, 'gabriel')}</strong></div>
+            <div class="person-metric"><span>Saldo</span><strong>${formatCurrency(gabrielTotals.totalRemaining, 'gabriel')}</strong></div>
           </div>
         </article>
       `;
@@ -1337,28 +1511,33 @@
 
     function renderTable(items) {
       const body = $('#tableBody');
+      const rows = getRenderableItems(items);
 
-      if (!items.length) {
+      if (!rows.length) {
         body.innerHTML = `<tr><td colspan="5" class="empty">Nenhum dado válido encontrado na visão atual.</td></tr>`;
         return;
       }
 
-      $('#tableCaption').textContent = state.activeView === 'casal'
-        ? 'Categorias somadas entre Maria e Gabriel.'
-        : `Categorias do orçamento individual de ${CONFIG.sources[state.activeView]?.label || state.activeView}.`;
+      $('#tableCaption').textContent = isMixedCoupleView()
+        ? 'Moedas diferentes: aqui o painel lista as categorias por pessoa, sem somar euro com real.'
+        : state.activeView === 'casal'
+          ? 'Categorias somadas entre Maria e Gabriel.'
+          : `Categorias do orçamento individual de ${CONFIG.sources[state.activeView]?.label || state.activeView}.`;
 
-      body.innerHTML = [...items]
+      body.innerHTML = [...rows]
         .sort((a, b) => b.usage - a.usage)
         .map(item => {
           const balanceClass = item.exceeded > 0 ? 'bad' : 'good';
           const usageText = item.usage > 100 ? `${formatPercent(item.usage)} · estourou` : formatPercent(item.usage);
           const balanceValue = item.exceeded > 0 ? -item.exceeded : item.remaining;
-          const breakdownText = state.activeView === 'casal'
-            ? [
-                item.breakdown?.maria ? `Maria: ${formatCurrency(item.breakdown.maria.spent)}` : null,
-                item.breakdown?.gabriel ? `Gabriel: ${formatCurrency(item.breakdown.gabriel.spent)}` : null
-              ].filter(Boolean).join(' • ')
-            : `Uso atual de ${formatPercent(item.usage)} nesta categoria`;
+          const breakdownText = isMixedCoupleView()
+            ? `${CONFIG.sources[item.owner]?.label || item.owner} · uso atual de ${formatPercent(item.usage)} nesta categoria`
+            : state.activeView === 'casal'
+              ? [
+                  item.breakdown?.maria ? `Maria: ${formatCurrency(item.breakdown.maria.spent, 'maria')}` : null,
+                  item.breakdown?.gabriel ? `Gabriel: ${formatCurrency(item.breakdown.gabriel.spent, 'gabriel')}` : null
+                ].filter(Boolean).join(' • ')
+              : `Uso atual de ${formatPercent(item.usage)} nesta categoria`;
 
           return `
             <tr>
@@ -1368,9 +1547,9 @@
                   <span class="td-sub">${breakdownText || 'Sem detalhe complementar'}</span>
                 </div>
               </td>
-              <td>${formatCurrency(item.limit)}</td>
-              <td>${formatCurrency(item.spent)}</td>
-              <td class="${balanceClass}">${formatCurrency(balanceValue)}</td>
+              <td>${formatCurrency(item.limit, item.owner || state.activeView)}</td>
+              <td>${formatCurrency(item.spent, item.owner || state.activeView)}</td>
+              <td class="${balanceClass}">${formatCurrency(balanceValue, item.owner || state.activeView)}</td>
               <td>${usageText}</td>
             </tr>
           `;
@@ -1380,24 +1559,26 @@
 
     function renderBars(items) {
       const box = $('#barsList');
+      const rows = getRenderableItems(items);
 
-      if (!items.length) {
+      if (!rows.length) {
         box.innerHTML = `<div class="empty">Sem categorias para exibir.</div>`;
         return;
       }
 
-      box.innerHTML = [...items]
+      box.innerHTML = [...rows]
         .sort((a, b) => b.usage - a.usage)
         .slice(0, 10)
         .map(item => {
           const className = item.usage >= 100 ? 'bad' : item.usage >= 80 ? 'warn' : '';
           const width = Math.min(item.usage, 100);
+          const ownerMeta = isMixedCoupleView() ? `${CONFIG.sources[item.owner]?.label || item.owner} · ` : '';
           return `
             <article class="bar-item">
               <div class="bar-top">
                 <div>
                   <div class="bar-name">${item.category}</div>
-                  <div class="bar-meta">${formatCurrency(item.spent)} de ${formatCurrency(item.limit)}</div>
+                  <div class="bar-meta">${ownerMeta}${formatCurrency(item.spent, item.owner || state.activeView)} de ${formatCurrency(item.limit, item.owner || state.activeView)}</div>
                 </div>
                 <div class="bar-meta">${formatPercent(item.usage)}</div>
               </div>
@@ -1412,6 +1593,50 @@
 
     function buildInsights(items, totals) {
       const insights = [];
+
+      if (isMixedCoupleView()) {
+        const allItems = getRenderableItems(items);
+        const topPressure = getTopPressure(allItems);
+        const critical = getCriticalCount(allItems);
+        const nearLimit = getNearLimitCount(allItems);
+        const mariaTotals = state.totals.maria || buildTotals([]);
+        const gabrielTotals = state.totals.gabriel || buildTotals([]);
+        const morePressured = mariaTotals.usage >= gabrielTotals.usage ? 'Maria' : 'Gabriel';
+
+        insights.push({
+          title: 'Leitura correta do casal',
+          text: 'Como vocês usam moedas diferentes, este painel compara pressão relativa e risco por categoria. Somar euro com real sem conversão seria maquiagem, não análise.'
+        });
+
+        insights.push({
+          title: 'Orçamento mais pressionado',
+          text: `${morePressured} está com ${formatPercent(Math.max(mariaTotals.usage, gabrielTotals.usage))} do próprio orçamento comprometido neste recorte.`
+        });
+
+        insights.push({
+          title: 'Leitura de risco',
+          text: critical > 0
+            ? `${critical} categoria(s) já bateram ou passaram do limite considerando os dois orçamentos.`
+            : nearLimit > 0
+              ? `${nearLimit} categoria(s) já passaram de 80% do limite entre Maria e Gabriel.`
+              : 'Nenhuma categoria entrou em faixa crítica ou de atenção por enquanto.'
+        });
+
+        insights.push({
+          title: 'Maior pressão por categoria',
+          text: topPressure
+            ? `${CONFIG.sources[topPressure.owner]?.label || topPressure.owner} está mais pressionado em ${topPressure.category}, com ${formatPercent(topPressure.usage)} do limite usado.`
+            : 'Sem dados suficientes para apontar a categoria mais pressionada.'
+        });
+
+        insights.push({
+          title: 'Saldo por pessoa',
+          text: `Maria ainda preserva ${formatCurrency(mariaTotals.totalRemaining, 'maria')} e Gabriel ${formatCurrency(gabrielTotals.totalRemaining, 'gabriel')} dentro dos próprios limites.`
+        });
+
+        return insights;
+      }
+
       const topPressure = getTopPressure(items);
       const biggestSpend = [...items].sort((a, b) => b.spent - a.spent)[0];
       const largestRemaining = [...items].sort((a, b) => b.remaining - a.remaining)[0];
@@ -1447,20 +1672,20 @@
       insights.push({
         title: 'Maior gasto',
         text: biggestSpend
-          ? `${biggestSpend.category} concentra o maior gasto absoluto: ${formatCurrency(biggestSpend.spent)}.`
+          ? `${biggestSpend.category} concentra o maior gasto absoluto: ${formatCurrency(biggestSpend.spent, state.activeView)}.`
           : 'Sem dados suficientes para apontar a categoria mais pesada.'
       });
 
       insights.push({
         title: 'Maior folga',
         text: largestRemaining
-          ? `${largestRemaining.category} preserva a maior sobra nominal: ${formatCurrency(largestRemaining.remaining)}.`
+          ? `${largestRemaining.category} preserva a maior sobra nominal: ${formatCurrency(largestRemaining.remaining, state.activeView)}.`
           : 'Sem dados suficientes para apontar sobra relevante.'
       });
 
       insights.push({
         title: 'Leitura consolidada',
-        text: `O recorte atual consumiu ${formatPercent(totals.usage)} do orçamento e ainda mantém ${formatCurrency(totals.totalRemaining)} disponíveis.`
+        text: `O recorte atual consumiu ${formatPercent(totals.usage)} do orçamento e ainda mantém ${formatCurrency(totals.totalRemaining, state.activeView)} disponíveis.`
       });
 
       return insights.slice(0, 6);
