@@ -10,95 +10,155 @@ const state = {
   budgets: [],
   transactions: [],
   selectedMonth: getCurrentMonth(),
+  editingCategoryId: null,
+  editingBudgetId: null,
+  editingTransactionId: null,
 };
 
 const el = {
-  authView: document.getElementById('authView'),
-  appView: document.getElementById('appView'),
-  authMessage: document.getElementById('authMessage'),
-  appMessage: document.getElementById('appMessage'),
-  loginEmail: document.getElementById('loginEmail'),
-  loginPassword: document.getElementById('loginPassword'),
-  signupName: document.getElementById('signupName'),
-  signupCurrency: document.getElementById('signupCurrency'),
-  signupEmail: document.getElementById('signupEmail'),
-  signupPassword: document.getElementById('signupPassword'),
-  currentUserName: document.getElementById('currentUserName'),
-  currentUserEmail: document.getElementById('currentUserEmail'),
-  selectedMonth: document.getElementById('selectedMonth'),
-  householdName: document.getElementById('householdName'),
-  joinHouseholdId: document.getElementById('joinHouseholdId'),
-  householdList: document.getElementById('householdList'),
-  categoryName: document.getElementById('categoryName'),
-  categoryScope: document.getElementById('categoryScope'),
-  categoryCurrency: document.getElementById('categoryCurrency'),
-  budgetAmount: document.getElementById('budgetAmount'),
-  txDate: document.getElementById('txDate'),
-  txCategory: document.getElementById('txCategory'),
-  txAmount: document.getElementById('txAmount'),
-  txCurrency: document.getElementById('txCurrency'),
-  txDescription: document.getElementById('txDescription'),
-  totalBudget: document.getElementById('totalBudget'),
-  totalSpent: document.getElementById('totalSpent'),
-  totalRemaining: document.getElementById('totalRemaining'),
-  totalCategories: document.getElementById('totalCategories'),
-  budgetsTable: document.getElementById('budgetsTable'),
-  transactionsTable: document.getElementById('transactionsTable'),
+  authView: byId('authView'),
+  signupView: byId('signupView'),
+  appView: byId('appView'),
+  authMessage: byId('authMessage'),
+  appMessage: byId('appMessage'),
+
+  loginEmail: byId('loginEmail'),
+  loginPassword: byId('loginPassword'),
+  signupName: byId('signupName'),
+  signupCurrency: byId('signupCurrency'),
+  signupEmail: byId('signupEmail'),
+  signupPassword: byId('signupPassword'),
+
+  currentUserName: byId('currentUserName'),
+  currentUserEmail: byId('currentUserEmail'),
+  selectedMonth: byId('selectedMonth'),
+  householdName: byId('householdName'),
+  joinHouseholdId: byId('joinHouseholdId'),
+  householdList: byId('householdList'),
+
+  categoryName: byId('categoryName'),
+  categoryScope: byId('categoryScope'),
+  categoryCurrency: byId('categoryCurrency'),
+  budgetAmount: byId('budgetAmount'),
+
+  txDate: byId('txDate'),
+  txCategory: byId('txCategory'),
+  txAmount: byId('txAmount'),
+  txCurrency: byId('txCurrency'),
+  txDescription: byId('txDescription'),
+
+  totalBudget: byId('totalBudget'),
+  totalSpent: byId('totalSpent'),
+  totalRemaining: byId('totalRemaining'),
+  totalCategories: byId('totalCategories'),
+  budgetsTable: byId('budgetsTable'),
+  transactionsTable: byId('transactionsTable'),
+
+  categoryModal: byId('categoryModal'),
+  categoryModalTitle: byId('categoryModalTitle'),
+  editCategoryName: byId('editCategoryName'),
+  editCategoryScope: byId('editCategoryScope'),
+  editCategoryCurrency: byId('editCategoryCurrency'),
+  editBudgetAmount: byId('editBudgetAmount'),
+  btnSaveCategoryEdit: byId('btnSaveCategoryEdit'),
+
+  transactionModal: byId('transactionModal'),
+  transactionModalTitle: byId('transactionModalTitle'),
+  editTxDate: byId('editTxDate'),
+  editTxCategory: byId('editTxCategory'),
+  editTxAmount: byId('editTxAmount'),
+  editTxCurrency: byId('editTxCurrency'),
+  editTxDescription: byId('editTxDescription'),
+  btnSaveTransactionEdit: byId('btnSaveTransactionEdit'),
 };
 
 bindEvents();
 boot();
 
 async function boot() {
-  el.selectedMonth.value = state.selectedMonth;
-  el.txDate.value = getToday();
+  if (el.selectedMonth) el.selectedMonth.value = state.selectedMonth;
+  if (el.txDate) el.txDate.value = getToday();
 
   const { data } = await supabase.auth.getSession();
   state.session = data.session;
 
   if (state.session?.user) {
-    await hydrateUser(data.session.user);
-    await loadAll();
-    renderApp();
+    if (el.signupView && !el.appView) {
+      window.location.href = './index.html';
+      return;
+    }
+    await hydrateUser(state.session.user);
+    if (el.appView) {
+      await loadAll();
+      renderApp();
+    }
   } else {
-    renderAuth();
+    renderAuthState();
   }
 
   supabase.auth.onAuthStateChange(async (_event, session) => {
     state.session = session;
+
     if (session?.user) {
+      if (el.signupView && !el.appView) {
+        window.location.href = './index.html';
+        return;
+      }
       await hydrateUser(session.user);
-      await loadAll();
-      renderApp();
+      if (el.appView) {
+        await loadAll();
+        renderApp();
+      }
     } else {
       resetStateAfterLogout();
-      renderAuth();
+      renderAuthState();
     }
   });
 }
 
 function bindEvents() {
-  document.getElementById('btnLogin').addEventListener('click', login);
-  document.getElementById('btnSignup').addEventListener('click', signup);
-  document.getElementById('btnLogout').addEventListener('click', logout);
-  document.getElementById('btnCreateHousehold').addEventListener('click', createHousehold);
-  document.getElementById('btnJoinHousehold').addEventListener('click', joinHousehold);
-  document.getElementById('btnCreateCategory').addEventListener('click', createCategoryAndBudget);
-  document.getElementById('btnAddTransaction').addEventListener('click', addTransaction);
-  el.selectedMonth.addEventListener('change', async (e) => {
-    state.selectedMonth = e.target.value;
-    await loadBudgetsAndTransactions();
-    renderDashboard();
+  bindClick('btnLogin', login);
+  bindClick('btnSignup', signup);
+  bindClick('btnLogout', logout);
+  bindClick('btnCreateHousehold', createHousehold);
+  bindClick('btnJoinHousehold', joinHousehold);
+  bindClick('btnCreateCategory', createCategoryAndBudget);
+  bindClick('btnAddTransaction', addTransaction);
+  bindClick('btnSaveCategoryEdit', saveCategoryEdit);
+  bindClick('btnSaveTransactionEdit', saveTransactionEdit);
+
+  if (el.selectedMonth) {
+    el.selectedMonth.addEventListener('change', async (e) => {
+      state.selectedMonth = e.target.value;
+      await loadBudgetsAndTransactions();
+      renderDashboard();
+    });
+  }
+
+  document.querySelectorAll('[data-close-modal]').forEach((node) => {
+    node.addEventListener('click', () => closeModal(node.dataset.closeModal));
   });
+
+  if (el.categoryModal) {
+    el.categoryModal.addEventListener('click', (e) => {
+      if (e.target === el.categoryModal) closeModal('categoryModal');
+    });
+  }
+
+  if (el.transactionModal) {
+    el.transactionModal.addEventListener('click', (e) => {
+      if (e.target === el.transactionModal) closeModal('transactionModal');
+    });
+  }
 }
 
 async function signup() {
   clearMessages();
 
-  const full_name = el.signupName.value.trim();
-  const default_currency = el.signupCurrency.value;
-  const email = el.signupEmail.value.trim();
-  const password = el.signupPassword.value.trim();
+  const full_name = valueOf(el.signupName);
+  const default_currency = el.signupCurrency?.value;
+  const email = valueOf(el.signupEmail);
+  const password = valueOf(el.signupPassword);
 
   if (!full_name || !email || !password) {
     showAuthMessage('Preencha nome, email e senha.', 'error');
@@ -108,24 +168,22 @@ async function signup() {
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      data: { full_name, default_currency },
-    },
+    options: { data: { full_name, default_currency } },
   });
 
   if (error) {
-    showAuthMessage(error.message, 'error');
+    showAuthMessage(mapSupabaseError(error), 'error');
     return;
   }
 
-  showAuthMessage('Conta criada. Se a confirmação de email estiver desligada no Supabase, você já pode entrar.', 'success');
+  showAuthMessage('Conta criada com sucesso. Agora volte para o login e entre normalmente.', 'success');
 }
 
 async function login() {
   clearMessages();
 
-  const email = el.loginEmail.value.trim();
-  const password = el.loginPassword.value.trim();
+  const email = valueOf(el.loginEmail);
+  const password = valueOf(el.loginPassword);
 
   if (!email || !password) {
     showAuthMessage('Preencha email e senha.', 'error');
@@ -135,21 +193,18 @@ async function login() {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    showAuthMessage(error.message, 'error');
+    showAuthMessage(mapSupabaseError(error), 'error');
   }
 }
 
 async function logout() {
   await supabase.auth.signOut();
+  window.location.href = './index.html';
 }
 
 async function hydrateUser(user) {
   state.user = user;
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
 
   if (error) {
     showAppMessage('Não foi possível carregar o perfil.', 'error');
@@ -157,6 +212,16 @@ async function hydrateUser(user) {
   }
 
   state.profile = data;
+  syncPreferredCurrency();
+}
+
+function syncPreferredCurrency() {
+  if (el.categoryCurrency && state.profile?.default_currency) {
+    el.categoryCurrency.value = state.profile.default_currency;
+  }
+  if (el.txCurrency && state.profile?.default_currency) {
+    el.txCurrency.value = state.profile.default_currency;
+  }
 }
 
 async function loadAll() {
@@ -182,7 +247,7 @@ async function loadHouseholds() {
     return;
   }
 
-  state.households = (data || []).map(item => ({
+  state.households = (data || []).map((item) => ({
     household_id: item.household_id,
     role: item.role,
     name: item.households?.name || 'Casa sem nome',
@@ -245,9 +310,9 @@ async function loadBudgetsAndTransactions() {
       .order('created_at', { ascending: false }),
   ]);
 
-  if (categoriesRes.error) showAppMessage(categoriesRes.error.message, 'error');
-  if (budgetsRes.error) showAppMessage(budgetsRes.error.message, 'error');
-  if (transactionsRes.error) showAppMessage(transactionsRes.error.message, 'error');
+  if (categoriesRes.error) showAppMessage(mapSupabaseError(categoriesRes.error), 'error');
+  if (budgetsRes.error) showAppMessage(mapSupabaseError(budgetsRes.error), 'error');
+  if (transactionsRes.error) showAppMessage(mapSupabaseError(transactionsRes.error), 'error');
 
   state.categories = categoriesRes.data || [];
   state.budgets = budgetsRes.data || [];
@@ -257,7 +322,7 @@ async function loadBudgetsAndTransactions() {
 async function createHousehold() {
   clearMessages();
 
-  const name = el.householdName.value.trim();
+  const name = valueOf(el.householdName);
   if (!name) {
     showAppMessage('Digite o nome da casa.', 'error');
     return;
@@ -270,27 +335,25 @@ async function createHousehold() {
     .single();
 
   if (houseError) {
-    showAppMessage(houseError.message, 'error');
+    showAppMessage(mapSupabaseError(houseError), 'error');
     return;
   }
 
-  const { error: memberError } = await supabase
-    .from('household_members')
-    .insert([
-      {
-        household_id: houseData.id,
-        user_id: state.user.id,
-        role: 'owner',
-      },
-    ]);
+  const { error: memberError } = await supabase.from('household_members').insert([
+    {
+      household_id: houseData.id,
+      user_id: state.user.id,
+      role: 'owner',
+    },
+  ]);
 
-  if (memberError) {
-    showAppMessage(memberError.message, 'error');
+  if (memberError && !isDuplicateKey(memberError)) {
+    showAppMessage(mapSupabaseError(memberError), 'error');
     return;
   }
 
   state.activeHouseholdId = houseData.id;
-  el.householdName.value = '';
+  if (el.householdName) el.householdName.value = '';
 
   await loadAll();
   renderApp();
@@ -300,29 +363,27 @@ async function createHousehold() {
 async function joinHousehold() {
   clearMessages();
 
-  const householdId = el.joinHouseholdId.value.trim();
+  const householdId = valueOf(el.joinHouseholdId);
   if (!householdId) {
-    showAppMessage('Cole o Household ID para entrar na casa.', 'error');
+    showAppMessage('Cole o ID da casa para entrar.', 'error');
     return;
   }
 
-  const { error } = await supabase
-    .from('household_members')
-    .insert([
-      {
-        household_id: householdId,
-        user_id: state.user.id,
-        role: 'member',
-      },
-    ]);
+  const { error } = await supabase.from('household_members').insert([
+    {
+      household_id: householdId,
+      user_id: state.user.id,
+      role: 'member',
+    },
+  ]);
 
   if (error) {
-    showAppMessage(error.message, 'error');
+    showAppMessage(mapSupabaseError(error), 'error');
     return;
   }
 
   state.activeHouseholdId = householdId;
-  el.joinHouseholdId.value = '';
+  if (el.joinHouseholdId) el.joinHouseholdId.value = '';
 
   await loadAll();
   renderApp();
@@ -337,10 +398,10 @@ async function createCategoryAndBudget() {
     return;
   }
 
-  const name = el.categoryName.value.trim();
-  const scope = el.categoryScope.value;
-  const currency = el.categoryCurrency.value;
-  const budgetAmount = parseCurrencyInput(el.budgetAmount.value);
+  const name = valueOf(el.categoryName);
+  const scope = el.categoryScope?.value;
+  const currency = el.categoryCurrency?.value;
+  const budgetAmount = parseCurrencyInput(valueOf(el.budgetAmount));
 
   if (!name) {
     showAppMessage('Digite o nome da categoria.', 'error');
@@ -369,30 +430,28 @@ async function createCategoryAndBudget() {
     .single();
 
   if (categoryError) {
-    showAppMessage(categoryError.message, 'error');
+    showAppMessage(mapSupabaseError(categoryError), 'error');
     return;
   }
 
-  const { error: budgetError } = await supabase
-    .from('monthly_budgets')
-    .insert([
-      {
-        household_id: state.activeHouseholdId,
-        category_id: categoryData.id,
-        owner_user_id,
-        year_month,
-        amount: budgetAmount,
-        currency,
-      },
-    ]);
+  const { error: budgetError } = await supabase.from('monthly_budgets').insert([
+    {
+      household_id: state.activeHouseholdId,
+      category_id: categoryData.id,
+      owner_user_id,
+      year_month,
+      amount: budgetAmount,
+      currency,
+    },
+  ]);
 
   if (budgetError) {
-    showAppMessage(budgetError.message, 'error');
+    showAppMessage(mapSupabaseError(budgetError), 'error');
     return;
   }
 
-  el.categoryName.value = '';
-  el.budgetAmount.value = '';
+  if (el.categoryName) el.categoryName.value = '';
+  if (el.budgetAmount) el.budgetAmount.value = '';
 
   await loadBudgetsAndTransactions();
   renderDashboard();
@@ -407,61 +466,65 @@ async function addTransaction() {
     return;
   }
 
-  const occurred_on = el.txDate.value;
-  const category_id = el.txCategory.value;
-  const amount = parseCurrencyInput(el.txAmount.value);
-  const currency = el.txCurrency.value;
-  const description = el.txDescription.value.trim();
+  const occurred_on = el.txDate?.value;
+  const category_id = el.txCategory?.value;
+  const amount = parseCurrencyInput(valueOf(el.txAmount));
+  const currency = el.txCurrency?.value;
+  const description = valueOf(el.txDescription);
 
   if (!occurred_on || !category_id || Number.isNaN(amount) || amount <= 0) {
     showAppMessage('Preencha data, categoria e valor válido.', 'error');
     return;
   }
 
-  const { error } = await supabase
-    .from('transactions')
-    .insert([
-      {
-        household_id: state.activeHouseholdId,
-        owner_user_id: state.user.id,
-        category_id,
-        occurred_on,
-        amount,
-        currency,
-        description,
-      },
-    ]);
+  const { error } = await supabase.from('transactions').insert([
+    {
+      household_id: state.activeHouseholdId,
+      owner_user_id: state.user.id,
+      category_id,
+      occurred_on,
+      amount,
+      currency,
+      description,
+    },
+  ]);
 
   if (error) {
-    showAppMessage(error.message, 'error');
+    showAppMessage(mapSupabaseError(error), 'error');
     return;
   }
 
-  el.txAmount.value = '';
-  el.txDescription.value = '';
+  if (el.txAmount) el.txAmount.value = '';
+  if (el.txDescription) el.txDescription.value = '';
 
   await loadBudgetsAndTransactions();
   renderDashboard();
   showAppMessage('Gasto lançado com sucesso.', 'success');
 }
 
-function renderAuth() {
-  el.authView.hidden = false;
-  el.appView.hidden = true;
+function renderAuthState() {
+  if (el.authView) el.authView.hidden = false;
+  if (el.signupView) el.signupView.hidden = false;
+  if (el.appView) el.appView.hidden = true;
 }
 
 function renderApp() {
-  el.authView.hidden = true;
-  el.appView.hidden = false;
+  if (!el.appView) return;
 
-  el.currentUserName.textContent = state.profile?.full_name || 'Usuário';
-  el.currentUserEmail.textContent = state.user?.email || '';
+  if (el.authView) el.authView.hidden = true;
+  if (el.appView) el.appView.hidden = false;
+
+  if (el.currentUserName) el.currentUserName.textContent = state.profile?.full_name || 'Usuário';
+  if (el.currentUserEmail) el.currentUserEmail.textContent = state.user?.email || '';
+
   renderHouseholds();
   renderCategoryOptions();
   renderDashboard();
 }
 
 function renderHouseholds() {
+  if (!el.householdList) return;
+
   el.householdList.innerHTML = '';
 
   if (state.households.length === 0) {
@@ -489,35 +552,20 @@ function renderCategoryOptions() {
     options.push(`<option value="${category.id}">${escapeHtml(category.name)}</option>`);
   });
 
-  el.txCategory.innerHTML = options.join('');
+  if (el.txCategory) el.txCategory.innerHTML = options.join('');
+  if (el.editTxCategory) el.editTxCategory.innerHTML = options.join('');
 }
 
 function renderDashboard() {
+  if (!el.totalBudget) return;
+
   const currentCurrency = state.profile?.default_currency || 'BRL';
+  const budgetRows = buildBudgetRows();
 
-  const budgetRows = state.budgets.map((budget) => {
-    const spent = state.transactions
-      .filter((tx) => tx.category_id === budget.category_id)
-      .reduce((sum, tx) => sum + Number(tx.amount), 0);
-
-    const remaining = Math.max(Number(budget.amount) - spent, 0);
-    const percent = Number(budget.amount) === 0 ? 0 : (spent / Number(budget.amount)) * 100;
-
-    return {
-      category: budget.categories?.name || 'Sem categoria',
-      scope: budget.categories?.scope || 'personal',
-      currency: budget.currency,
-      budget: Number(budget.amount),
-      spent,
-      remaining,
-      percent,
-    };
-  });
-
-  const sameCurrencyRows = budgetRows.filter(row => row.currency === currentCurrency);
+  const sameCurrencyRows = budgetRows.filter((row) => row.currency === currentCurrency);
   const totalBudget = sameCurrencyRows.reduce((sum, row) => sum + row.budget, 0);
   const totalSpent = state.transactions
-    .filter(tx => tx.currency === currentCurrency)
+    .filter((tx) => tx.currency === currentCurrency)
     .reduce((sum, tx) => sum + Number(tx.amount), 0);
   const totalRemaining = Math.max(totalBudget - totalSpent, 0);
 
@@ -530,62 +578,77 @@ function renderDashboard() {
   renderTransactionsTable();
 }
 
+function buildBudgetRows() {
+  return state.budgets.map((budget) => {
+    const spent = state.transactions
+      .filter((tx) => tx.category_id === budget.category_id)
+      .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+    const budgetAmount = Number(budget.amount);
+    const remaining = Math.max(budgetAmount - spent, 0);
+    const percent = budgetAmount === 0 ? 0 : (spent / budgetAmount) * 100;
+
+    return {
+      id: budget.id,
+      categoryId: budget.category_id,
+      category: budget.categories?.name || 'Sem categoria',
+      scope: budget.categories?.scope || 'personal',
+      currency: budget.currency,
+      budget: budgetAmount,
+      spent,
+      remaining,
+      percent,
+      ownerUserId: budget.owner_user_id,
+    };
+  });
+}
+
 function renderBudgetsTable(rows) {
+  if (!el.budgetsTable) return;
+
   if (rows.length === 0) {
     el.budgetsTable.innerHTML = '<div class="empty-state">Nenhum limite mensal cadastrado para este mês.</div>';
     return;
   }
 
-  const html = [`
-    <table>
-      <thead>
-        <tr>
-          <th>Categoria</th>
-          <th>Tipo</th>
-          <th>Limite</th>
-          <th>Gasto</th>
-          <th>Saldo</th>
-          <th>Uso</th>
-        </tr>
-      </thead>
-      <tbody>
-  `];
+  const html = [
+    '<div class="table-shell"><table><thead><tr><th>Categoria</th><th>Tipo</th><th>Limite</th><th>Gasto</th><th>Saldo</th><th>Uso</th><th>Ações</th></tr></thead><tbody>',
+  ];
 
   rows.forEach((row) => {
     html.push(`
       <tr>
         <td>${escapeHtml(row.category)}</td>
-        <td>${row.scope === 'shared' ? 'Compartilhada' : 'Pessoal'}</td>
+        <td><span class="badge">${row.scope === 'shared' ? 'Compartilhada' : 'Pessoal'}</span></td>
         <td>${formatMoney(row.budget, row.currency)}</td>
         <td>${formatMoney(row.spent, row.currency)}</td>
-        <td>${formatMoney(row.remaining, row.currency)}</td>
+        <td class="${getMoneyClass(row.remaining, row.budget)}">${formatMoney(row.remaining, row.currency)}</td>
         <td>${row.percent.toFixed(1)}%</td>
+        <td>
+          <div class="row-actions">
+            <button class="action-btn" type="button" onclick="window.SOMA.editCategory('${row.categoryId}')">Editar</button>
+            <button class="action-btn danger" type="button" onclick="window.SOMA.deleteCategory('${row.categoryId}')">Excluir</button>
+          </div>
+        </td>
       </tr>
     `);
   });
 
-  html.push('</tbody></table>');
+  html.push('</tbody></table></div>');
   el.budgetsTable.innerHTML = html.join('');
 }
 
 function renderTransactionsTable() {
+  if (!el.transactionsTable) return;
+
   if (state.transactions.length === 0) {
     el.transactionsTable.innerHTML = '<div class="empty-state">Nenhum gasto lançado neste mês.</div>';
     return;
   }
 
-  const html = [`
-    <table>
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Categoria</th>
-          <th>Descrição</th>
-          <th>Valor</th>
-        </tr>
-      </thead>
-      <tbody>
-  `];
+  const html = [
+    '<div class="table-shell"><table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Ações</th></tr></thead><tbody>',
+  ];
 
   state.transactions.forEach((tx) => {
     html.push(`
@@ -594,12 +657,301 @@ function renderTransactionsTable() {
         <td>${escapeHtml(tx.categories?.name || 'Sem categoria')}</td>
         <td>${escapeHtml(tx.description || '-')}</td>
         <td>${formatMoney(Number(tx.amount), tx.currency)}</td>
+        <td>
+          <div class="row-actions">
+            <button class="action-btn" type="button" onclick="window.SOMA.editTransaction('${tx.id}')">Editar</button>
+            <button class="action-btn danger" type="button" onclick="window.SOMA.deleteTransaction('${tx.id}')">Excluir</button>
+          </div>
+        </td>
       </tr>
     `);
   });
 
-  html.push('</tbody></table>');
+  html.push('</tbody></table></div>');
   el.transactionsTable.innerHTML = html.join('');
+}
+
+function openEditCategory(categoryId) {
+  clearMessages();
+  const category = state.categories.find((item) => item.id === categoryId);
+  const budget = state.budgets.find((item) => item.category_id === categoryId);
+
+  if (!category || !budget) {
+    showAppMessage('Não foi possível abrir essa categoria para edição.', 'error');
+    return;
+  }
+
+  state.editingCategoryId = categoryId;
+  state.editingBudgetId = budget.id;
+
+  if (el.categoryModalTitle) el.categoryModalTitle.textContent = `Editar categoria: ${category.name}`;
+  if (el.editCategoryName) el.editCategoryName.value = category.name;
+  if (el.editCategoryScope) el.editCategoryScope.value = category.scope;
+  if (el.editCategoryCurrency) el.editCategoryCurrency.value = budget.currency;
+  if (el.editBudgetAmount) el.editBudgetAmount.value = formatNumberForInput(budget.amount);
+
+  openModal('categoryModal');
+}
+
+async function saveCategoryEdit() {
+  clearMessages();
+
+  const categoryId = state.editingCategoryId;
+  const budgetId = state.editingBudgetId;
+  const name = valueOf(el.editCategoryName);
+  const scope = el.editCategoryScope?.value;
+  const currency = el.editCategoryCurrency?.value;
+  const amount = parseCurrencyInput(valueOf(el.editBudgetAmount));
+
+  if (!categoryId || !budgetId) {
+    showAppMessage('Edição de categoria inválida.', 'error');
+    return;
+  }
+
+  if (!name) {
+    showAppMessage('Digite um nome válido para a categoria.', 'error');
+    return;
+  }
+
+  if (Number.isNaN(amount) || amount < 0) {
+    showAppMessage('Digite um limite mensal válido.', 'error');
+    return;
+  }
+
+  const owner_user_id = scope === 'personal' ? state.user.id : null;
+
+  const { error: categoryError } = await supabase
+    .from('categories')
+    .update({ name, scope, owner_user_id })
+    .eq('id', categoryId);
+
+  if (categoryError) {
+    showAppMessage(mapSupabaseError(categoryError), 'error');
+    return;
+  }
+
+  const { error: budgetError } = await supabase
+    .from('monthly_budgets')
+    .update({ amount, currency, owner_user_id })
+    .eq('id', budgetId);
+
+  if (budgetError) {
+    showAppMessage(mapSupabaseError(budgetError), 'error');
+    return;
+  }
+
+  closeModal('categoryModal');
+  await loadBudgetsAndTransactions();
+  renderApp();
+  showAppMessage('Categoria atualizada com sucesso.', 'success');
+}
+
+async function deleteCategory(categoryId) {
+  clearMessages();
+
+  const category = state.categories.find((item) => item.id === categoryId);
+  if (!category) {
+    showAppMessage('Categoria não encontrada.', 'error');
+    return;
+  }
+
+  const { count, error: txCheckError } = await supabase
+    .from('transactions')
+    .select('*', { count: 'exact', head: true })
+    .eq('category_id', categoryId);
+
+  if (txCheckError) {
+    showAppMessage(mapSupabaseError(txCheckError), 'error');
+    return;
+  }
+
+  if ((count || 0) > 0) {
+    showAppMessage('Essa categoria já possui lançamentos no histórico. Nesse caso, o caminho correto é editar, não excluir.', 'error');
+    return;
+  }
+
+  const confirmed = window.confirm(`Excluir a categoria "${category.name}"? Isso também remove o limite mensal vinculado.`);
+  if (!confirmed) return;
+
+  const { error } = await supabase.from('categories').delete().eq('id', categoryId);
+
+  if (error) {
+    showAppMessage(mapSupabaseError(error), 'error');
+    return;
+  }
+
+  await loadBudgetsAndTransactions();
+  renderApp();
+  showAppMessage('Categoria excluída com sucesso.', 'success');
+}
+
+function openEditTransaction(transactionId) {
+  clearMessages();
+  const tx = state.transactions.find((item) => item.id === transactionId);
+
+  if (!tx) {
+    showAppMessage('Não foi possível abrir esse lançamento.', 'error');
+    return;
+  }
+
+  state.editingTransactionId = transactionId;
+
+  if (el.transactionModalTitle) el.transactionModalTitle.textContent = 'Editar lançamento';
+  if (el.editTxDate) el.editTxDate.value = tx.occurred_on;
+  if (el.editTxCategory) el.editTxCategory.value = tx.category_id;
+  if (el.editTxCurrency) el.editTxCurrency.value = tx.currency;
+  if (el.editTxAmount) el.editTxAmount.value = formatNumberForInput(tx.amount);
+  if (el.editTxDescription) el.editTxDescription.value = tx.description || '';
+
+  openModal('transactionModal');
+}
+
+async function saveTransactionEdit() {
+  clearMessages();
+
+  const txId = state.editingTransactionId;
+  const occurred_on = el.editTxDate?.value;
+  const category_id = el.editTxCategory?.value;
+  const currency = el.editTxCurrency?.value;
+  const amount = parseCurrencyInput(valueOf(el.editTxAmount));
+  const description = valueOf(el.editTxDescription);
+
+  if (!txId || !occurred_on || !category_id || Number.isNaN(amount) || amount <= 0) {
+    showAppMessage('Preencha data, categoria e valor válido.', 'error');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('transactions')
+    .update({ occurred_on, category_id, currency, amount, description })
+    .eq('id', txId);
+
+  if (error) {
+    showAppMessage(mapSupabaseError(error), 'error');
+    return;
+  }
+
+  closeModal('transactionModal');
+  await loadBudgetsAndTransactions();
+  renderDashboard();
+  showAppMessage('Lançamento atualizado com sucesso.', 'success');
+}
+
+async function deleteTransaction(transactionId) {
+  clearMessages();
+
+  const tx = state.transactions.find((item) => item.id === transactionId);
+  if (!tx) {
+    showAppMessage('Lançamento não encontrado.', 'error');
+    return;
+  }
+
+  const confirmed = window.confirm(`Excluir o lançamento de ${formatMoney(tx.amount, tx.currency)}?`);
+  if (!confirmed) return;
+
+  const { error } = await supabase.from('transactions').delete().eq('id', transactionId);
+
+  if (error) {
+    showAppMessage(mapSupabaseError(error), 'error');
+    return;
+  }
+
+  await loadBudgetsAndTransactions();
+  renderDashboard();
+  showAppMessage('Lançamento excluído com sucesso.', 'success');
+}
+
+function openModal(id) {
+  const node = byId(id);
+  if (node) node.hidden = false;
+}
+
+function closeModal(id) {
+  const node = byId(id);
+  if (node) node.hidden = true;
+
+  if (id === 'categoryModal') {
+    state.editingCategoryId = null;
+    state.editingBudgetId = null;
+  }
+
+  if (id === 'transactionModal') {
+    state.editingTransactionId = null;
+  }
+}
+
+function clearMessages() {
+  if (el.authMessage) el.authMessage.innerHTML = '';
+  if (el.appMessage) el.appMessage.innerHTML = '';
+}
+
+function showAuthMessage(message, type = 'info') {
+  if (!el.authMessage) return;
+  el.authMessage.innerHTML = `<div class="message ${type}">${escapeHtml(message)}</div>`;
+}
+
+function showAppMessage(message, type = 'info') {
+  if (!el.appMessage) return;
+  el.appMessage.innerHTML = `<div class="message ${type}">${escapeHtml(message)}</div>`;
+}
+
+function resetStateAfterLogout() {
+  state.user = null;
+  state.profile = null;
+  state.households = [];
+  state.activeHouseholdId = null;
+  state.categories = [];
+  state.budgets = [];
+  state.transactions = [];
+  state.editingCategoryId = null;
+  state.editingBudgetId = null;
+  state.editingTransactionId = null;
+}
+
+function mapSupabaseError(error) {
+  const message = error?.message || '';
+
+  if (message.includes('duplicate key value violates unique constraint "household_members_pkey"')) {
+    return 'Você já faz parte desta casa.';
+  }
+
+  if (message.includes('violates foreign key constraint "household_members_household_id_fkey"')) {
+    return 'Essa casa não foi encontrada. Confira o ID e tente de novo.';
+  }
+
+  if (message.includes('duplicate key value violates unique constraint "idx_categories_unique_name"')) {
+    return 'Já existe uma categoria com esse nome nessa casa.';
+  }
+
+  if (message.includes('duplicate key value violates unique constraint "idx_monthly_budgets_unique"')) {
+    return 'Essa categoria já tem limite cadastrado para esse mês.';
+  }
+
+  if (message.includes('violates foreign key constraint "transactions_category_id_fkey"')) {
+    return 'A categoria escolhida não existe mais ou não está disponível.';
+  }
+
+  if (message.includes('invalid login credentials')) {
+    return 'Email ou senha inválidos.';
+  }
+
+  if (message.includes('User already registered')) {
+    return 'Esse email já está cadastrado.';
+  }
+
+  return message || 'Ocorreu um erro inesperado.';
+}
+
+function isDuplicateKey(error) {
+  return (error?.message || '').includes('duplicate key value violates unique constraint');
+}
+
+function getMoneyClass(remaining, budget) {
+  if (budget === 0) return '';
+  const percent = remaining / budget;
+  if (percent <= 0.1) return 'money-danger';
+  if (percent <= 0.25) return 'money-warning';
+  return 'money-positive';
 }
 
 function formatMoney(value, currency) {
@@ -612,6 +964,10 @@ function formatMoney(value, currency) {
 function formatDate(dateString) {
   const [y, m, d] = dateString.split('-');
   return `${d}/${m}/${y}`;
+}
+
+function formatNumberForInput(value) {
+  return Number(value || 0).toFixed(2).replace('.', ',');
 }
 
 function getCurrentMonth() {
@@ -654,29 +1010,6 @@ function parseCurrencyInput(value) {
   return Number(normalized);
 }
 
-function clearMessages() {
-  el.authMessage.innerHTML = '';
-  el.appMessage.innerHTML = '';
-}
-
-function showAuthMessage(message, type = 'info') {
-  el.authMessage.innerHTML = `<div class="message ${type}">${escapeHtml(message)}</div>`;
-}
-
-function showAppMessage(message, type = 'info') {
-  el.appMessage.innerHTML = `<div class="message ${type}">${escapeHtml(message)}</div>`;
-}
-
-function resetStateAfterLogout() {
-  state.user = null;
-  state.profile = null;
-  state.households = [];
-  state.activeHouseholdId = null;
-  state.categories = [];
-  state.budgets = [];
-  state.transactions = [];
-}
-
 function escapeHtml(text) {
   return String(text)
     .replaceAll('&', '&amp;')
@@ -685,3 +1018,23 @@ function escapeHtml(text) {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 }
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function bindClick(id, handler) {
+  const node = byId(id);
+  if (node) node.addEventListener('click', handler);
+}
+
+function valueOf(node) {
+  return node?.value?.trim?.() || '';
+}
+
+window.SOMA = {
+  editCategory: openEditCategory,
+  deleteCategory,
+  editTransaction: openEditTransaction,
+  deleteTransaction,
+};
