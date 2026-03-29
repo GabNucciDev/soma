@@ -265,7 +265,7 @@ async function createHousehold() {
 
   const { data: houseData, error: houseError } = await supabase
     .from('households')
-    .insert([{ name }])
+    .insert([{ name, created_by: state.user.id }])
     .select()
     .single();
 
