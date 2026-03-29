@@ -1,1782 +1,227 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Painel Financeiro do Casal</title>
-  <style>
-    :root{
-      --bg:#07111f;
-      --bg-2:#0b1730;
-      --panel:rgba(10,20,39,.72);
-      --panel-solid:#0d1930;
-      --card:rgba(255,255,255,.055);
-      --card-2:rgba(255,255,255,.075);
-      --border:rgba(255,255,255,.10);
-      --border-strong:rgba(255,255,255,.16);
-      --text:#ecf3ff;
-      --muted:#9bb0cb;
-      --muted-2:#7b8aa5;
-      --accent:#7cb6ff;
-      --accent-2:#4de2c5;
-      --good:#22c55e;
-      --warn:#f59e0b;
-      --bad:#ef4444;
-      --radius-xl:28px;
-      --radius-lg:22px;
-      --radius-md:16px;
-      --shadow:0 24px 60px rgba(0,0,0,.28);
-      --shadow-soft:0 18px 40px rgba(3,9,20,.24);
-      --content-max:1440px;
-    }
-
-    *{box-sizing:border-box}
-    html,body{margin:0}
-    body{
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color:var(--text);
-      min-height:100vh;
-      background:
-        radial-gradient(circle at 0% 0%, rgba(124,182,255,.16), transparent 28%),
-        radial-gradient(circle at 100% 0%, rgba(77,226,197,.10), transparent 22%),
-        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
-    }
-
-    .shell{
-      max-width:var(--content-max);
-      margin:0 auto;
-      padding:28px;
-    }
-
-    .hero{
-      display:grid;
-      grid-template-columns:minmax(0,1.4fr) minmax(320px,.8fr);
-      gap:18px;
-      align-items:stretch;
-      margin-bottom:20px;
-    }
-
-    .hero-main,
-    .hero-side,
-    .panel{
-      background:linear-gradient(180deg, rgba(13,25,48,.88), rgba(8,17,32,.78));
-      border:1px solid var(--border);
-      box-shadow:var(--shadow-soft);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-    }
-
-    .hero-main{
-      border-radius:calc(var(--radius-xl) + 6px);
-      padding:28px;
-      position:relative;
-      overflow:hidden;
-    }
-
-    .hero-main:before{
-      content:"";
-      position:absolute;
-      inset:auto -80px -120px auto;
-      width:280px;
-      height:280px;
-      background:radial-gradient(circle, rgba(124,182,255,.18), transparent 70%);
-      pointer-events:none;
-    }
-
-    .hero-side{
-      border-radius:calc(var(--radius-xl) + 6px);
-      padding:22px;
-      display:flex;
-      flex-direction:column;
-      justify-content:space-between;
-      gap:18px;
-    }
-
-    .eyebrow{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding:8px 14px;
-      border-radius:999px;
-      background:rgba(124,182,255,.10);
-      border:1px solid rgba(124,182,255,.18);
-      color:#d7e8ff;
-      font-size:.88rem;
-      font-weight:700;
-      letter-spacing:.02em;
-    }
-
-    .eyebrow-dot{
-      width:8px;
-      height:8px;
-      border-radius:999px;
-      background:var(--accent-2);
-      box-shadow:0 0 0 8px rgba(77,226,197,.12);
-    }
-
-    h1{
-      margin:18px 0 14px;
-      font-size:clamp(2rem, 5vw, 3.5rem);
-      line-height:.98;
-      letter-spacing:-.04em;
-      max-width:760px;
-    }
-
-    .hero-text{
-      margin:0;
-      color:var(--muted);
-      max-width:760px;
-      font-size:1.02rem;
-      line-height:1.65;
-    }
-
-    .hero-meta{
-      margin-top:22px;
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-    }
-
-    .meta-pill{
-      background:rgba(255,255,255,.05);
-      border:1px solid var(--border);
-      color:var(--muted);
-      border-radius:999px;
-      padding:10px 14px;
-      font-weight:600;
-      font-size:.92rem;
-    }
-
-    .hero-side-top{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:16px;
-    }
-
-    .hero-side-title{
-      margin:0;
-      font-size:1rem;
-      color:var(--muted);
-      font-weight:700;
-    }
-
-    .hero-side-value{
-      margin:8px 0 6px;
-      font-size:clamp(1.8rem, 4vw, 2.8rem);
-      line-height:1;
-      letter-spacing:-.04em;
-    }
-
-    .hero-side-sub{
-      margin:0;
-      color:var(--muted);
-      line-height:1.55;
-      font-size:.96rem;
-    }
-
-    .toolbar{
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      justify-content:flex-end;
-      align-items:center;
-    }
-
-    button{
-      appearance:none;
-      border:none;
-      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
-      color:var(--text);
-      padding:13px 18px;
-      border-radius:999px;
-      font-weight:700;
-      font-size:.96rem;
-      border:1px solid var(--border-strong);
-      cursor:pointer;
-      transition:transform .18s ease, background .18s ease, border-color .18s ease;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-    }
-
-    button:hover{
-      transform:translateY(-1px);
-      background:linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.07));
-      border-color:rgba(255,255,255,.22);
-    }
-
-    .button-ghost{
-      background:rgba(255,255,255,.04);
-    }
-
-    .status-line{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      color:var(--muted);
-      font-size:.92rem;
-      font-weight:600;
-      flex-wrap:wrap;
-    }
-
-    .status-dot{
-      width:10px;
-      height:10px;
-      border-radius:999px;
-      background:var(--accent-2);
-      box-shadow:0 0 0 8px rgba(77,226,197,.10);
-      flex:0 0 auto;
-    }
-
-    .layout{
-      display:grid;
-      grid-template-columns: repeat(12, minmax(0,1fr));
-      gap:18px;
-    }
-
-    .panel{
-      border-radius:var(--radius-xl);
-      padding:22px;
-      box-shadow:var(--shadow);
-    }
-
-    .panel-header{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:16px;
-      margin-bottom:18px;
-      flex-wrap:wrap;
-    }
-
-    .panel-header h2{
-      margin:0 0 6px;
-      font-size:1.18rem;
-      letter-spacing:-.02em;
-    }
-
-    .panel-header p{
-      margin:0;
-      color:var(--muted);
-      line-height:1.55;
-    }
-
-    .panel-full{grid-column: span 12}
-    .panel-8{grid-column: span 8}
-    .panel-7{grid-column: span 7}
-    .panel-5{grid-column: span 5}
-    .panel-4{grid-column: span 4}
-    .panel-6{grid-column: span 6}
-
-    .segment{
-      display:inline-flex;
-      gap:8px;
-      padding:6px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:rgba(255,255,255,.04);
-      flex-wrap:wrap;
-    }
-
-    .segment button{
-      padding:10px 14px;
-      background:transparent;
-      border:1px solid transparent;
-      color:var(--muted);
-      box-shadow:none;
-    }
-
-    .segment button.active{
-      background:linear-gradient(180deg, rgba(124,182,255,.18), rgba(124,182,255,.08));
-      color:var(--text);
-      border-color:rgba(124,182,255,.28);
-    }
-
-    .metrics{
-      display:grid;
-      grid-template-columns:repeat(4, minmax(0,1fr));
-      gap:16px;
-    }
-
-    .metric{
-      background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.035));
-      border:1px solid var(--border);
-      border-radius:22px;
-      padding:18px;
-      min-height:142px;
-      display:flex;
-      flex-direction:column;
-      justify-content:space-between;
-    }
-
-    .metric-label{
-      color:var(--muted);
-      font-weight:700;
-      font-size:.92rem;
-    }
-
-    .metric-value{
-      margin:14px 0 8px;
-      font-size:clamp(1.45rem, 4vw, 2.2rem);
-      line-height:1;
-      letter-spacing:-.04em;
-      font-weight:800;
-    }
-
-    .metric-sub{
-      color:var(--muted);
-      line-height:1.45;
-      font-size:.94rem;
-    }
-
-    .progress-summary{
-      display:grid;
-      gap:18px;
-    }
-
-    .health-card{
-      border:1px solid var(--border);
-      border-radius:24px;
-      padding:20px;
-      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
-    }
-
-    .health-top{
-      display:flex;
-      justify-content:space-between;
-      gap:14px;
-      flex-wrap:wrap;
-      align-items:flex-start;
-      margin-bottom:16px;
-    }
-
-    .health-title{
-      font-weight:800;
-      font-size:1.08rem;
-      letter-spacing:-.02em;
-    }
-
-    .badge{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 12px;
-      border-radius:999px;
-      font-weight:700;
-      font-size:.84rem;
-      border:1px solid var(--border);
-      background:rgba(255,255,255,.04);
-      white-space:nowrap;
-    }
-
-    .badge.good{color:#c8ffe6; background:rgba(34,197,94,.14); border-color:rgba(34,197,94,.26)}
-    .badge.warn{color:#ffe7b3; background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.24)}
-    .badge.bad{color:#ffd4d4; background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.24)}
-
-    .big-progress{
-      height:16px;
-      width:100%;
-      border-radius:999px;
-      background:rgba(255,255,255,.08);
-      overflow:hidden;
-      position:relative;
-      margin-bottom:14px;
-    }
-
-    .big-progress > span{
-      display:block;
-      height:100%;
-      border-radius:inherit;
-      background:linear-gradient(90deg, var(--accent), #9ed0ff);
-      transition:width .35s ease;
-    }
-
-    .health-grid{
-      display:grid;
-      grid-template-columns:repeat(2, minmax(0,1fr));
-      gap:12px;
-      margin-top:14px;
-    }
-
-    .mini-card{
-      border-radius:18px;
-      border:1px solid var(--border);
-      padding:14px;
-      background:rgba(255,255,255,.04);
-    }
-
-    .mini-label{
-      color:var(--muted-2);
-      font-size:.82rem;
-      font-weight:700;
-      text-transform:uppercase;
-      letter-spacing:.04em;
-    }
-
-    .mini-value{
-      margin-top:8px;
-      font-size:1.3rem;
-      font-weight:800;
-      letter-spacing:-.03em;
-    }
-
-    .comparison{
-      display:grid;
-      gap:14px;
-    }
-
-    .person-card{
-      border:1px solid var(--border);
-      border-radius:22px;
-      padding:18px;
-      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.035));
-    }
-
-    .person-head{
-      display:flex;
-      justify-content:space-between;
-      gap:12px;
-      align-items:flex-start;
-      flex-wrap:wrap;
-      margin-bottom:14px;
-    }
-
-    .person-name{
-      font-weight:800;
-      font-size:1rem;
-      letter-spacing:-.02em;
-    }
-
-    .person-summary{
-      color:var(--muted);
-      font-size:.92rem;
-      line-height:1.5;
-    }
-
-    .person-metrics{
-      display:grid;
-      grid-template-columns:repeat(3, minmax(0,1fr));
-      gap:10px;
-    }
-
-    .person-metric{
-      border:1px solid var(--border);
-      border-radius:16px;
-      padding:12px;
-      background:rgba(255,255,255,.035);
-    }
-
-    .person-metric strong{
-      display:block;
-      font-size:1rem;
-      letter-spacing:-.02em;
-      margin-top:6px;
-    }
-
-    .person-metric span{
-      color:var(--muted-2);
-      font-size:.8rem;
-      font-weight:700;
-      text-transform:uppercase;
-      letter-spacing:.04em;
-    }
-
-    .stack{
-      display:grid;
-      gap:12px;
-    }
-
-    .share-bar{
-      display:grid;
-      gap:8px;
-    }
-
-    .share-head{
-      display:flex;
-      justify-content:space-between;
-      gap:12px;
-      color:var(--muted);
-      font-size:.92rem;
-      font-weight:600;
-    }
-
-    .share-track{
-      height:12px;
-      width:100%;
-      background:rgba(255,255,255,.08);
-      border-radius:999px;
-      overflow:hidden;
-      display:flex;
-    }
-
-    .share-track span{
-      height:100%;
-      display:block;
-    }
-
-    .share-a{background:linear-gradient(90deg, rgba(124,182,255,.95), rgba(158,208,255,.95))}
-    .share-b{background:linear-gradient(90deg, rgba(77,226,197,.95), rgba(113,236,214,.95))}
-
-    table{
-      width:100%;
-      border-collapse:collapse;
-      min-width:720px;
-    }
-
-    th, td{
-      text-align:left;
-      padding:14px 12px;
-      border-bottom:1px solid rgba(255,255,255,.08);
-    }
-
-    th{
-      color:var(--muted);
-      font-size:.84rem;
-      text-transform:uppercase;
-      letter-spacing:.06em;
-      font-weight:800;
-    }
-
-    td{
-      font-size:.98rem;
-      color:var(--text);
-    }
-
-    tbody tr:hover{
-      background:rgba(255,255,255,.028);
-    }
-
-    .td-main{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-    }
-
-    .td-sub{
-      color:var(--muted);
-      font-size:.84rem;
-      line-height:1.4;
-    }
-
-    .good{color:#61ffa8; font-weight:700}
-    .bad{color:#ff8f8f; font-weight:700}
-    .muted{color:var(--muted)}
-
-    .bars{
-      display:grid;
-      gap:12px;
-    }
-
-    .bar-item{
-      border:1px solid var(--border);
-      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
-      border-radius:20px;
-      padding:14px 14px 12px;
-    }
-
-    .bar-top{
-      display:flex;
-      justify-content:space-between;
-      gap:14px;
-      align-items:flex-start;
-      margin-bottom:10px;
-    }
-
-    .bar-name{
-      font-weight:800;
-      letter-spacing:-.02em;
-      margin-bottom:3px;
-    }
-
-    .bar-meta{
-      color:var(--muted);
-      font-size:.88rem;
-      line-height:1.4;
-    }
-
-    .bar-track{
-      height:12px;
-      background:rgba(255,255,255,.08);
-      border-radius:999px;
-      overflow:hidden;
-    }
-
-    .bar-fill{
-      height:100%;
-      border-radius:999px;
-      background:linear-gradient(90deg, var(--accent), #9ed0ff);
-      transition:width .35s ease;
-    }
-
-    .bar-fill.warn{background:linear-gradient(90deg, #f5b340, #ffd484)}
-    .bar-fill.bad{background:linear-gradient(90deg, #ef4444, #ff8f8f)}
-
-    .insights{
-      display:grid;
-      grid-template-columns:repeat(3, minmax(0,1fr));
-      gap:14px;
-    }
-
-    .insight{
-      border:1px solid var(--border);
-      border-radius:22px;
-      padding:18px;
-      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
-      min-height:148px;
-    }
-
-    .insight-title{
-      font-size:1rem;
-      font-weight:800;
-      letter-spacing:-.02em;
-      margin-bottom:10px;
-    }
-
-    .insight-text{
-      color:var(--muted);
-      line-height:1.6;
-      font-size:.95rem;
-    }
-
-    .inline-note{
-      color:var(--muted);
-      font-size:.92rem;
-      line-height:1.6;
-    }
-
-    .warning-box{
-      display:none;
-      margin-top:16px;
-      border-radius:18px;
-      border:1px solid rgba(245,158,11,.24);
-      background:rgba(245,158,11,.12);
-      color:#ffe6b7;
-      padding:14px 16px;
-      line-height:1.55;
-    }
-
-    .empty{
-      color:var(--muted);
-      padding:10px 0;
-    }
-
-    .footer{
-      margin-top:18px;
-      color:var(--muted);
-      font-size:.9rem;
-      line-height:1.6;
-    }
-
-    @media (max-width: 1180px){
-      .hero{grid-template-columns:1fr}
-      .metrics{grid-template-columns:repeat(2, minmax(0,1fr))}
-      .panel-8,.panel-7,.panel-6,.panel-5,.panel-4{grid-column:span 12}
-      .insights{grid-template-columns:1fr 1fr}
-    }
-
-    @media (max-width: 760px){
-      .shell{padding:16px}
-      .hero-main,.hero-side,.panel{padding:18px}
-      .metrics{grid-template-columns:1fr}
-      .health-grid{grid-template-columns:1fr}
-      .person-metrics{grid-template-columns:1fr}
-      .insights{grid-template-columns:1fr}
-      .toolbar{justify-content:flex-start}
-      .segment{width:100%}
-      .segment button{flex:1 1 auto}
-    }
-  </style>
+  <title>Casal Finanças</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="shell">
-    <section class="hero">
-      <div class="hero-main">
-        <h1>Painel Financeiro do Casal</h1>
-        <p class="hero-text">
-          Visibilidade clara sobre o dinheiro da casa, com leitura por pessoa e visão conjunta do orçamento.
-        </p>
-        <div class="hero-meta">
-          <div class="meta-pill" id="connectionSummary">Conectando fontes...</div>
-          <div class="meta-pill" id="currentMode">Modo atual: Casal</div>
-          <div class="meta-pill" id="lastRefreshMeta">Última atualização: aguardando</div>
-        </div>
-      </div>
+  <main class="page">
+    <section id="authView">
+      <div class="auth-shell">
+        <div class="panel auth-hero">
+          <h2>Tenha controle real do dinheiro da casa.</h2>
+          <p>
+            Esta versão já sai da planilha e começa a funcionar como produto.
+            Vocês criam conta, entram na mesma casa, definem categorias do mês e lançam gastos direto na aplicação.
+          </p>
 
-      <div class="hero-side">
-        <div>
-          <div class="hero-side-top">
-            <div>
-              <p class="hero-side-title">Leitura principal</p>
-              <div class="hero-side-value" id="headlineValue">€ 0,00</div>
-              <p class="hero-side-sub" id="headlineText">Preparando o painel para leitura.</p>
+          <div class="grid grid-3">
+            <div class="card">
+              <h3>Foco do mês</h3>
+              <div class="muted">Os limites são mensais. Cada mês pode ter regras diferentes.</div>
             </div>
-            <div class="toolbar">
-              <button id="reloadBtn">Atualizar dados</button>
+            <div class="card">
+              <h3>Cadastro direto</h3>
+              <div class="muted">Nada de alimentar planilha publicada para ver o dashboard reagir.</div>
+            </div>
+            <div class="card">
+              <h3>Base séria</h3>
+              <div class="muted">Os dados ficam em banco real com autenticação e segurança por usuário.</div>
             </div>
           </div>
         </div>
-        <div class="status-line">
-          <span class="status-dot"></span>
-          <span id="statusLine">Aguardando primeira sincronização.</span>
+
+        <div class="grid">
+          <section class="panel auth-box">
+            <h3 class="section-title">Entrar</h3>
+            <div class="field">
+              <label for="loginEmail">Email</label>
+              <input id="loginEmail" type="email" placeholder="voce@email.com" />
+            </div>
+            <div class="field">
+              <label for="loginPassword">Senha</label>
+              <input id="loginPassword" type="password" placeholder="Sua senha" />
+            </div>
+            <div class="actions">
+              <button class="btn" id="btnLogin">Entrar</button>
+            </div>
+          </section>
+
+          <section class="panel auth-box">
+            <h3 class="section-title">Criar conta</h3>
+            <div class="field">
+              <label for="signupName">Nome</label>
+              <input id="signupName" type="text" placeholder="Gabriel" />
+            </div>
+            <div class="field">
+              <label for="signupCurrency">Moeda padrão</label>
+              <select id="signupCurrency">
+                <option value="BRL">Real (BRL)</option>
+                <option value="EUR">Euro (EUR)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="signupEmail">Email</label>
+              <input id="signupEmail" type="email" placeholder="voce@email.com" />
+            </div>
+            <div class="field">
+              <label for="signupPassword">Senha</label>
+              <input id="signupPassword" type="password" placeholder="Crie uma senha" />
+            </div>
+            <div class="actions">
+              <button class="btn" id="btnSignup">Criar conta</button>
+            </div>
+            <div id="authMessage"></div>
+          </section>
         </div>
       </div>
     </section>
 
-    <section class="panel panel-full">
-      <div class="panel-header">
-        <div>
-          <h2>Visão que você quer analisar</h2>
-          <p>Troque entre o consolidado do casal e as visões individuais sem sair da página.</p>
-        </div>
-        <div class="segment" id="viewSwitch">
-          <button data-view="casal" class="active">Casal</button>
-          <button data-view="maria">Maria</button>
-          <button data-view="gabriel">Gabriel</button>
-        </div>
+    <section id="appView" hidden>
+      <div class="app-shell">
+        <header class="panel topbar">
+          <div class="identity">
+            <strong id="currentUserName">Usuário</strong>
+            <span id="currentUserEmail">email</span>
+          </div>
+
+          <div class="controls">
+            <div class="field" style="margin:0; min-width:220px;">
+              <label for="selectedMonth">Mês de referência</label>
+              <input id="selectedMonth" type="month" />
+            </div>
+            <button class="btn secondary" id="btnLogout">Sair</button>
+          </div>
+        </header>
+
+        <div id="appMessage"></div>
+
+        <section class="panel card">
+          <h3 class="section-title">Sua casa</h3>
+          <div class="grid grid-2">
+            <div>
+              <div class="field">
+                <label for="householdName">Criar nova casa</label>
+                <input id="householdName" type="text" placeholder="Casa Gabriel & Maria" />
+              </div>
+              <button class="btn" id="btnCreateHousehold">Criar casa</button>
+            </div>
+            <div>
+              <div class="field">
+                <label for="joinHouseholdId">Entrar em casa existente</label>
+                <input id="joinHouseholdId" type="text" placeholder="Cole o Household ID aqui" />
+              </div>
+              <button class="btn secondary" id="btnJoinHousehold">Entrar na casa</button>
+            </div>
+          </div>
+          <div style="height:16px"></div>
+          <div class="household-list" id="householdList"></div>
+        </section>
+
+        <section class="grid grid-4">
+          <div class="panel summary-card">
+            <div class="kicker">Limite do mês</div>
+            <div class="value" id="totalBudget">R$ 0,00</div>
+            <div class="foot">Somado na moeda padrão do usuário atual.</div>
+          </div>
+          <div class="panel summary-card">
+            <div class="kicker">Gasto do mês</div>
+            <div class="value" id="totalSpent">R$ 0,00</div>
+            <div class="foot">Lançamentos do mês selecionado.</div>
+          </div>
+          <div class="panel summary-card">
+            <div class="kicker">Saldo do mês</div>
+            <div class="value" id="totalRemaining">R$ 0,00</div>
+            <div class="foot">Limite menos gasto.</div>
+          </div>
+          <div class="panel summary-card">
+            <div class="kicker">Categorias ativas</div>
+            <div class="value" id="totalCategories">0</div>
+            <div class="foot">Categorias com limite cadastrado no mês.</div>
+          </div>
+        </section>
+
+        <section class="grid grid-2">
+          <div class="panel card">
+            <h3 class="section-title">Criar categoria + limite do mês</h3>
+            <div class="field">
+              <label for="categoryName">Nome da categoria</label>
+              <input id="categoryName" type="text" placeholder="Comida" />
+            </div>
+            <div class="grid grid-2">
+              <div class="field">
+                <label for="categoryScope">Escopo</label>
+                <select id="categoryScope">
+                  <option value="personal">Pessoal</option>
+                  <option value="shared">Compartilhada</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="categoryCurrency">Moeda</label>
+                <select id="categoryCurrency">
+                  <option value="BRL">BRL</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="budgetAmount">Limite mensal</label>
+              <input id="budgetAmount" type="text" placeholder="Ex.: 250,00" />
+            </div>
+            <button class="btn" id="btnCreateCategory">Salvar categoria do mês</button>
+          </div>
+
+          <div class="panel card">
+            <h3 class="section-title">Adicionar gasto</h3>
+            <div class="grid grid-2">
+              <div class="field">
+                <label for="txDate">Data</label>
+                <input id="txDate" type="date" />
+              </div>
+              <div class="field">
+                <label for="txCurrency">Moeda</label>
+                <select id="txCurrency">
+                  <option value="BRL">BRL</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="txCategory">Categoria</label>
+              <select id="txCategory">
+                <option value="">Selecione</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="txAmount">Valor</label>
+              <input id="txAmount" type="text" placeholder="Ex.: 45,90" />
+            </div>
+            <div class="field">
+              <label for="txDescription">Descrição</label>
+              <input id="txDescription" type="text" placeholder="Ex.: mercado, gasolina, aluguel" />
+            </div>
+            <button class="btn" id="btnAddTransaction">Salvar gasto</button>
+          </div>
+        </section>
+
+        <section class="panel card table-wrap">
+          <h3 class="section-title">Limites por categoria no mês</h3>
+          <div id="budgetsTable"></div>
+        </section>
+
+        <section class="panel card table-wrap">
+          <h3 class="section-title">Lançamentos do mês</h3>
+          <div id="transactionsTable"></div>
+        </section>
       </div>
-
-      <div class="metrics" id="metricGrid"></div>
-      <div class="warning-box" id="warningBox"></div>
     </section>
+  </main>
 
-    <section class="layout">
-      <section class="panel panel-7">
-        <div class="panel-header">
-          <div>
-            <h2>Radar do orçamento</h2>
-            <p id="healthDescription">Leitura consolidada do orçamento atual.</p>
-          </div>
-          <div class="badge good" id="healthBadge">Saudável</div>
-        </div>
-
-        <div class="progress-summary">
-          <div class="health-card">
-            <div class="health-top">
-              <div>
-                <div class="health-title" id="healthTitle">Orçamento sob controle</div>
-                <p class="inline-note" id="healthText">Assim que os dados forem carregados, esta área resume o cenário.</p>
-              </div>
-            </div>
-            <div class="big-progress"><span id="mainProgressBar" style="width:0%"></span></div>
-            <div class="health-grid">
-              <div class="mini-card">
-                <div class="mini-label">Comprometido</div>
-                <div class="mini-value" id="committedValue">€ 0,00</div>
-              </div>
-              <div class="mini-card">
-                <div class="mini-label">Disponível</div>
-                <div class="mini-value" id="availableValue">€ 0,00</div>
-              </div>
-              <div class="mini-card">
-                <div class="mini-label">Categorias críticas</div>
-                <div class="mini-value" id="criticalValue">0</div>
-              </div>
-              <div class="mini-card">
-                <div class="mini-label">Maior pressão</div>
-                <div class="mini-value" id="topPressureValue">-</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="comparison" id="comparisonBox"></div>
-        </div>
-      </section>
-
-      <section class="panel panel-5">
-        <div class="panel-header">
-          <div>
-            <h2>Consumo por categoria</h2>
-            <p>As barras mostram o quanto cada limite já foi consumido.</p>
-          </div>
-        </div>
-        <div class="bars" id="barsList"></div>
-      </section>
-
-      <section class="panel panel-full">
-        <div class="panel-header">
-          <div>
-            <h2>Detalhamento por categoria</h2>
-            <p id="tableCaption">Leitura detalhada dos dados ativos.</p>
-          </div>
-        </div>
-        <div style="overflow:auto">
-          <table>
-            <thead>
-              <tr>
-                <th>Categoria</th>
-                <th>Limite</th>
-                <th>Gasto</th>
-                <th>Saldo</th>
-                <th>Uso</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
-        </div>
-
-      </section>
-
-      <section class="panel panel-full">
-        <div class="panel-header">
-          <div>
-            <h2>Insights automáticos</h2>
-            <p>Leituras rápidas para não obrigar ninguém a interpretar a planilha no braço.</p>
-          </div>
-        </div>
-        <div class="insights" id="insightsBox"></div>
-      </section>
-    </section>
-  </div>
-
-  <script>
-    const CONFIG = {
-      locale: 'pt-BR',
-      defaultCurrency: 'EUR',
-      refreshMinutes: 10,
-      spreadsheetId: '17F67tetUv3_K7rt5kbUJ1iJkehssOcCtprwjc6kWUxU',
-      sources: {
-        maria: {
-          label: 'Maria',
-          currency: 'EUR',
-          csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRFhyn1x146qLzzfS4DVnDM8FoKWx50PKv89GXENwcmFvnIL6uD-K4LO_l9GrfHgkp6gb3P36JBFdCY/pub?output=csv'
-        },
-        gabriel: {
-          label: 'Gabriel',
-          currency: 'BRL',
-          sheetName: 'gabriel'
-        }
-      }
-    };
-
-    const state = {
-      activeView: 'casal',
-      datasets: {},
-      totals: {},
-      combinedItems: [],
-      syncErrors: {},
-      lastLoadedAt: null
-    };
-
-    const $ = (selector) => document.querySelector(selector);
-
-    function getSourceCurrency(sourceKey) {
-      return CONFIG.sources[sourceKey]?.currency || CONFIG.defaultCurrency;
-    }
-
-    function getLoadedCurrencies() {
-      const keys = Object.keys(state.datasets);
-      return [...new Set(keys.map(getSourceCurrency).filter(Boolean))];
-    }
-
-    function hasMixedCurrencies() {
-      return getLoadedCurrencies().length > 1;
-    }
-
-    function isMixedCoupleView() {
-      return state.activeView === 'casal' && hasMixedCurrencies();
-    }
-
-    function formatCurrency(value, sourceKeyOrCurrency = null) {
-      let currency = sourceKeyOrCurrency;
-
-      if (!currency) {
-        currency = state.activeView === 'casal'
-          ? CONFIG.defaultCurrency
-          : getSourceCurrency(state.activeView);
-      } else if (CONFIG.sources[sourceKeyOrCurrency]) {
-        currency = getSourceCurrency(sourceKeyOrCurrency);
-      }
-
-      return new Intl.NumberFormat(CONFIG.locale, {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(Number(value || 0));
-    }
-
-    function formatPercent(value) {
-      return `${Number(value || 0).toFixed(1)}%`;
-    }
-
-    function stripAccents(value) {
-      return String(value || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-    }
-
-    function slugify(value) {
-      return stripAccents(value)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
-    }
-
-    function parseCSV(text) {
-      const rows = [];
-      let row = [];
-      let current = '';
-      let insideQuotes = false;
-
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        const next = text[i + 1];
-
-        if (char === '"') {
-          if (insideQuotes && next === '"') {
-            current += '"';
-            i++;
-          } else {
-            insideQuotes = !insideQuotes;
-          }
-        } else if (char === ',' && !insideQuotes) {
-          row.push(current);
-          current = '';
-        } else if ((char === '\n' || char === '\r') && !insideQuotes) {
-          if (char === '\r' && next === '\n') i++;
-          row.push(current);
-          if (row.some(cell => String(cell).trim() !== '')) rows.push(row);
-          row = [];
-          current = '';
-        } else {
-          current += char;
-        }
-      }
-
-      if (current.length || row.length) {
-        row.push(current);
-        if (row.some(cell => String(cell).trim() !== '')) rows.push(row);
-      }
-
-      return rows;
-    }
-
-    function parseMoney(raw) {
-      if (raw === null || raw === undefined) return 0;
-      const text = String(raw).trim();
-      if (!text || text === '-' || text === '—') return 0;
-
-      let cleaned = text
-        .replace(/€/gi, '')
-        .replace(/R\$/gi, '')
-        .replace(/\s/g, '')
-        .replace(/\.(?=\d{3}(\D|$))/g, '')
-        .replace(/,/g, '.');
-
-      cleaned = cleaned.replace(/[^0-9.-]/g, '');
-      const value = Number(cleaned);
-      return Number.isFinite(value) ? value : 0;
-    }
-
-    function normalizeText(value) {
-      return String(value || '').trim();
-    }
-
-    function looksLikeCategoryRow(row) {
-      const name = normalizeText(row[0]).toLowerCase();
-      if (!name) return false;
-      if (name.includes('gastos totais')) return false;
-      if (name === 'categoria' || name === 'categorias') return false;
-      if (name === 'total' || name === 'total:' || name === 'totais') return false;
-      if (name === 'valor limite' || name === 'valor gasto' || name === 'sobra') return false;
-      return true;
-    }
-
-    function mapRows(rows, ownerKey) {
-      const items = [];
-
-      for (const row of rows) {
-        if (!looksLikeCategoryRow(row)) continue;
-
-        const category = normalizeText(row[0]);
-        if (!category) continue;
-
-        let limit = 0;
-        let spent = 0;
-
-        const numericValues = row.slice(1).map(parseMoney).filter(v => Number.isFinite(v));
-
-        if (!numericValues.length) continue;
-
-        if (row.length >= 5 && String(row[1]).trim().match(/^r?\$/i)) {
-          limit = parseMoney(row[2]);
-          spent = parseMoney(row[4]);
-        } else if (row.length >= 4 && String(row[1]).trim() && String(row[2]).trim()) {
-          limit = parseMoney(row[1]);
-          spent = parseMoney(row[2]);
-        } else {
-          limit = numericValues[0] || 0;
-          spent = numericValues[1] || 0;
-        }
-
-        if (limit === 0 && spent === 0) continue;
-
-        const remainingRaw = limit - spent;
-        const remaining = Math.max(remainingRaw, 0);
-        const exceeded = Math.max(spent - limit, 0);
-        const usage = limit > 0 ? (spent / limit) * 100 : 0;
-
-        items.push({
-          key: slugify(category),
-          category,
-          owner: ownerKey,
-          limit,
-          spent,
-          remaining,
-          exceeded,
-          usage
-        });
-      }
-
-      return items;
-    }
-
-    function buildTotals(items) {
-      const totalLimit = items.reduce((sum, item) => sum + item.limit, 0);
-      const totalSpent = items.reduce((sum, item) => sum + item.spent, 0);
-      const totalRemaining = Math.max(totalLimit - totalSpent, 0);
-      const totalExceeded = Math.max(totalSpent - totalLimit, 0);
-      const usage = totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
-      return { totalLimit, totalSpent, totalRemaining, totalExceeded, usage };
-    }
-
-    function getSourceCandidates(key, source) {
-      const candidates = [];
-      if (source.csvUrl) candidates.push(source.csvUrl);
-
-      if (CONFIG.spreadsheetId && source.sheetName) {
-        candidates.push(`https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(source.sheetName)}`);
-      }
-
-      if (CONFIG.spreadsheetId && source.gid) {
-        candidates.push(`https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/export?format=csv&gid=${source.gid}`);
-      }
-
-      return [...new Set(candidates)];
-    }
-
-    async function fetchFirstAvailable(candidates) {
-      let lastError = null;
-
-      for (const url of candidates) {
-        try {
-          const response = await fetch(url, { cache: 'no-store' });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-          const text = await response.text();
-          const normalized = String(text || '').trim();
-
-          if (!normalized) throw new Error('Resposta vazia');
-          if (normalized.startsWith('<!DOCTYPE') || normalized.startsWith('<html')) {
-            throw new Error('Resposta HTML em vez de CSV');
-          }
-
-          return { url, text };
-        } catch (error) {
-          lastError = error;
-        }
-      }
-
-      throw lastError || new Error('Nenhuma rota de leitura funcionou');
-    }
-
-    function combineDatasets() {
-      const merged = new Map();
-
-      Object.entries(state.datasets).forEach(([ownerKey, items]) => {
-        items.forEach(item => {
-          const key = item.key || slugify(item.category);
-
-          if (!merged.has(key)) {
-            merged.set(key, {
-              key,
-              category: item.category,
-              limit: 0,
-              spent: 0,
-              remaining: 0,
-              exceeded: 0,
-              usage: 0,
-              breakdown: {}
-            });
-          }
-
-          const record = merged.get(key);
-          record.category = record.category || item.category;
-          record.limit += item.limit;
-          record.spent += item.spent;
-          record.breakdown[ownerKey] = {
-            limit: item.limit,
-            spent: item.spent,
-            remaining: item.remaining,
-            usage: item.usage
-          };
-        });
-      });
-
-      const combined = [...merged.values()].map(item => {
-        const remainingRaw = item.limit - item.spent;
-        const remaining = Math.max(remainingRaw, 0);
-        const exceeded = Math.max(item.spent - item.limit, 0);
-        const usage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
-
-        return {
-          ...item,
-          remaining,
-          exceeded,
-          usage
-        };
-      });
-
-      state.combinedItems = combined;
-      state.totals.casal = buildTotals(combined);
-    }
-
-    function getActiveItems() {
-      if (state.activeView === 'casal') return state.combinedItems || [];
-      return state.datasets[state.activeView] || [];
-    }
-
-    function getActiveTotals() {
-      return state.totals[state.activeView] || buildTotals([]);
-    }
-
-    function getCriticalCount(items) {
-      return items.filter(item => item.usage >= 100).length;
-    }
-
-    function getNearLimitCount(items) {
-      return items.filter(item => item.usage >= 80 && item.usage < 100).length;
-    }
-
-    function getTopPressure(items) {
-      return [...items].sort((a, b) => b.usage - a.usage)[0] || null;
-    }
-
-    function getHealthState(totals, items) {
-      const critical = getCriticalCount(items);
-      const nearLimit = getNearLimitCount(items);
-
-      if (critical > 0 || totals.totalExceeded > 0 || totals.usage > 100) {
-        return {
-          tone: 'bad',
-          badge: 'Estourado',
-          title: 'Há estouro real ou iminente',
-          text: 'O orçamento já passou do limite em pelo menos uma frente. Aqui não é detalhe visual. É desvio concreto.',
-          subtitle: 'Precisa de correção imediata'
-        };
-      }
-
-      if (nearLimit > 0 || totals.usage >= 80) {
-        return {
-          tone: 'warn',
-          badge: 'Em atenção',
-          title: 'O orçamento ainda respira, mas já pressiona',
-          text: 'Ainda não virou problema consolidado, mas parte do orçamento entrou em zona de atenção e merece ajuste.',
-          subtitle: 'Zona de risco controlável'
-        };
-      }
-
-      return {
-        tone: 'good',
-        badge: 'Saudável',
-        title: 'O orçamento está sob controle',
-        text: 'Não há categoria estourada e o consolidado ainda mantém folga. Bom sinal, mas sem ilusão: controle só existe se continuar assim.',
-        subtitle: 'Leitura estável'
-      };
-    }
-
-    function getPressureLabel(items, totals) {
-      const critical = getCriticalCount(items);
-      const nearLimit = getNearLimitCount(items);
-
-      if (critical > 0 || totals.totalExceeded > 0 || totals.usage > 100) {
-        return {
-          value: 'Crítico',
-          sub: critical > 0
-            ? `${critical} categoria(s) já bateram ou passaram do limite.`
-            : 'O orçamento já ultrapassou o limite disponível.'
-        };
-      }
-
-      if (nearLimit > 0 || totals.usage >= 80) {
-        return {
-          value: 'Em atenção',
-          sub: nearLimit > 0
-            ? `${nearLimit} categoria(s) já passaram de 80% do limite.`
-            : 'O orçamento ainda cabe, mas a margem já apertou.'
-        };
-      }
-
-      return {
-        value: 'Saudável',
-        sub: 'Nenhuma categoria entrou em faixa de risco relevante.'
-      };
-    }
-
-    function getCoupleHealthState() {
-      const allItems = Object.values(state.datasets).flat();
-      const critical = getCriticalCount(allItems);
-      const nearLimit = getNearLimitCount(allItems);
-      const highestUsage = Math.max(0, ...Object.values(state.totals).map(total => Number(total?.usage || 0)));
-
-      if (critical > 0 || highestUsage > 100) {
-        return {
-          tone: 'bad',
-          badge: 'Crítico',
-          title: 'Há pressão real em pelo menos um dos orçamentos',
-          text: 'Como vocês usam moedas diferentes, a leitura honesta do casal é por percentual e por categoria crítica, não por soma monetária.',
-          subtitle: 'Comparação por pressão, sem misturar moedas'
-        };
-      }
-
-      if (nearLimit > 0 || highestUsage >= 80) {
-        return {
-          tone: 'warn',
-          badge: 'Em atenção',
-          title: 'Os dois orçamentos ainda cabem, mas a margem já aperta em algum ponto',
-          text: 'Aqui a métrica útil é quem está mais pressionado dentro do próprio orçamento, não quem soma mais dinheiro.',
-          subtitle: 'Comparação relativa entre Maria e Gabriel'
-        };
-      }
-
-      return {
-        tone: 'good',
-        badge: 'Saudável',
-        title: 'Os dois orçamentos ainda estão sob controle',
-        text: 'Sem conversão cambial, o painel compara pressão relativa e risco por categoria. Essa é a leitura correta para moedas diferentes.',
-        subtitle: 'Sem pressão relevante no recorte atual'
-      };
-    }
-
-    function getRenderableItems(items) {
-      if (!isMixedCoupleView()) return items;
-
-      return Object.entries(state.datasets)
-        .flatMap(([ownerKey, ownerItems]) => (ownerItems || []).map(item => ({ ...item, owner: ownerKey })))
-        .sort((a, b) => b.usage - a.usage);
-    }
-
-    function renderHeader() {
-      const loadedKeys = Object.keys(state.datasets);
-      const loadedLabels = loadedKeys.map(key => CONFIG.sources[key]?.label || key);
-
-      $('#connectionSummary').textContent = loadedLabels.length
-        ? `${loadedLabels.length} fonte(s) conectadas: ${loadedLabels.join(' • ')}`
-        : 'Nenhuma fonte conectada';
-
-      $('#currentMode').textContent = `Modo atual: ${state.activeView === 'casal' ? 'Casal' : CONFIG.sources[state.activeView]?.label || state.activeView}`;
-      $('#lastRefreshMeta').textContent = state.lastLoadedAt
-        ? `Última atualização: ${new Date(state.lastLoadedAt).toLocaleString(CONFIG.locale)}`
-        : 'Última atualização: aguardando';
-
-      if (Object.keys(state.syncErrors).length) {
-        const names = Object.keys(state.syncErrors).map(key => CONFIG.sources[key]?.label || key).join(', ');
-        $('#statusLine').textContent = `Sincronização parcial. Houve falha em: ${names}.`;
-      } else {
-        $('#statusLine').textContent = 'Painel sincronizado com sucesso.';
-      }
-    }
-
-    function renderMetricCards(items, totals) {
-      const critical = getCriticalCount(items);
-      const nearLimit = getNearLimitCount(items);
-
-      if (isMixedCoupleView()) {
-        const mariaTotals = state.totals.maria || buildTotals([]);
-        const gabrielTotals = state.totals.gabriel || buildTotals([]);
-        const pressure = getCoupleHealthState();
-
-        const cards = [
-          {
-            label: 'Moedas ativas',
-            value: getLoadedCurrencies().join(' + '),
-            sub: 'O consolidado em dinheiro foi desativado para não misturar euro com real.'
-          },
-          {
-            label: 'Maria · gasto',
-            value: formatCurrency(mariaTotals.totalSpent, 'maria'),
-            sub: `${formatPercent(mariaTotals.usage)} do orçamento individual comprometido.`
-          },
-          {
-            label: 'Gabriel · gasto',
-            value: formatCurrency(gabrielTotals.totalSpent, 'gabriel'),
-            sub: `${formatPercent(gabrielTotals.usage)} do orçamento individual comprometido.`
-          },
-          {
-            label: 'Status do orçamento',
-            value: pressure.badge,
-            sub: pressure.text
-          }
-        ];
-
-        $('#metricGrid').innerHTML = cards.map(card => `
-          <article class="metric">
-            <div class="metric-label">${card.label}</div>
-            <div class="metric-value">${card.value}</div>
-            <div class="metric-sub">${card.sub}</div>
-          </article>
-        `).join('');
-        return;
-      }
-
-      const modeLabel = state.activeView === 'casal' ? 'consolidado do casal' : `recorte individual de ${CONFIG.sources[state.activeView]?.label || state.activeView}`;
-      const pressure = getPressureLabel(items, totals);
-
-      const cards = [
-        {
-          label: 'Orçamento total',
-          value: formatCurrency(totals.totalLimit),
-          sub: `Soma dos limites do ${modeLabel}.`
-        },
-        {
-          label: 'Gasto realizado',
-          value: formatCurrency(totals.totalSpent),
-          sub: `${formatPercent(totals.usage)} do orçamento já comprometido.`
-        },
-        {
-          label: 'Saldo restante',
-          value: formatCurrency(totals.totalRemaining),
-          sub: totals.totalExceeded > 0
-            ? `Estouro consolidado de ${formatCurrency(totals.totalExceeded)}.`
-            : 'Folga ainda disponível dentro do planejamento.'
-        },
-        {
-          label: 'Status do orçamento',
-          value: pressure.value,
-          sub: pressure.sub
-        }
-      ];
-
-      $('#metricGrid').innerHTML = cards.map(card => `
-        <article class="metric">
-          <div class="metric-label">${card.label}</div>
-          <div class="metric-value">${card.value}</div>
-          <div class="metric-sub">${card.sub}</div>
-        </article>
-      `).join('');
-    }
-
-    function renderHealth(items, totals) {
-      if (isMixedCoupleView()) {
-        const health = getCoupleHealthState();
-        const allItems = getRenderableItems(items);
-        const topPressure = getTopPressure(allItems);
-        const mariaTotals = state.totals.maria || buildTotals([]);
-        const gabrielTotals = state.totals.gabriel || buildTotals([]);
-        const progressUsage = Math.max(mariaTotals.usage || 0, gabrielTotals.usage || 0);
-
-        $('#healthDescription').textContent = 'Comparativo do casal sem soma monetária. Aqui a leitura é por percentual e risco, porque as moedas são diferentes.';
-        $('#healthBadge').className = `badge ${health.tone}`;
-        $('#healthBadge').textContent = health.badge;
-        $('#healthTitle').textContent = health.title;
-        $('#healthText').textContent = health.text;
-        $('#mainProgressBar').style.width = `${Math.min(progressUsage, 100)}%`;
-        $('#mainProgressBar').style.background = health.tone === 'bad'
-          ? 'linear-gradient(90deg, #ef4444, #ff8f8f)'
-          : health.tone === 'warn'
-            ? 'linear-gradient(90deg, #f5b340, #ffd484)'
-            : 'linear-gradient(90deg, #7cb6ff, #9ed0ff)';
-
-        $('#committedValue').textContent = `${formatCurrency(mariaTotals.totalSpent, 'maria')} · ${formatCurrency(gabrielTotals.totalSpent, 'gabriel')}`;
-        $('#availableValue').textContent = `${formatCurrency(mariaTotals.totalRemaining, 'maria')} · ${formatCurrency(gabrielTotals.totalRemaining, 'gabriel')}`;
-        $('#criticalValue').textContent = `${getCriticalCount(allItems)}`;
-        $('#topPressureValue').textContent = topPressure
-          ? `${CONFIG.sources[topPressure.owner]?.label || topPressure.owner} · ${topPressure.category} · ${formatPercent(topPressure.usage)}`
-          : '-';
-
-        $('#headlineValue').textContent = getLoadedCurrencies().join(' + ');
-        $('#headlineText').textContent = health.subtitle;
-        return;
-      }
-
-      const health = getHealthState(totals, items);
-      const topPressure = getTopPressure(items);
-
-      $('#healthDescription').textContent = state.activeView === 'casal'
-        ? 'Leitura consolidada dos dois lados do orçamento.'
-        : `Leitura do orçamento individual de ${CONFIG.sources[state.activeView]?.label || state.activeView}.`;
-
-      $('#healthBadge').className = `badge ${health.tone}`;
-      $('#healthBadge').textContent = health.badge;
-      $('#healthTitle').textContent = health.title;
-      $('#healthText').textContent = health.text;
-      $('#mainProgressBar').style.width = `${Math.min(totals.usage, 100)}%`;
-      $('#mainProgressBar').style.background = health.tone === 'bad'
-        ? 'linear-gradient(90deg, #ef4444, #ff8f8f)'
-        : health.tone === 'warn'
-          ? 'linear-gradient(90deg, #f5b340, #ffd484)'
-          : 'linear-gradient(90deg, #7cb6ff, #9ed0ff)';
-
-      $('#committedValue').textContent = `${formatCurrency(totals.totalSpent)} · ${formatPercent(totals.usage)}`;
-      $('#availableValue').textContent = formatCurrency(totals.totalRemaining);
-      $('#criticalValue').textContent = `${getCriticalCount(items)}`;
-      $('#topPressureValue').textContent = topPressure ? `${topPressure.category} · ${formatPercent(topPressure.usage)}` : '-';
-
-      $('#headlineValue').textContent = formatCurrency(totals.totalRemaining);
-      $('#headlineText').textContent = health.subtitle;
-    }
-
-    function renderComparison() {
-      const box = $('#comparisonBox');
-
-      if (state.activeView !== 'casal') {
-        const activeKey = state.activeView;
-        const totals = state.totals[activeKey] || buildTotals([]);
-        box.innerHTML = `
-          <article class="person-card">
-            <div class="person-head">
-              <div>
-                <div class="person-name">${CONFIG.sources[activeKey]?.label || activeKey}</div>
-                <div class="person-summary">Visão focada só nesse orçamento. Boa para enxergar responsabilidade individual sem misturar com o consolidado.</div>
-              </div>
-              <div class="badge ${getHealthState(totals, state.datasets[activeKey] || []).tone}">
-                ${getHealthState(totals, state.datasets[activeKey] || []).badge}
-              </div>
-            </div>
-            <div class="person-metrics">
-              <div class="person-metric"><span>Limite</span><strong>${formatCurrency(totals.totalLimit, activeKey)}</strong></div>
-              <div class="person-metric"><span>Gasto</span><strong>${formatCurrency(totals.totalSpent, activeKey)}</strong></div>
-              <div class="person-metric"><span>Saldo</span><strong>${formatCurrency(totals.totalRemaining, activeKey)}</strong></div>
-            </div>
-          </article>
-        `;
-        return;
-      }
-
-      const mariaTotals = state.totals.maria || buildTotals([]);
-      const gabrielTotals = state.totals.gabriel || buildTotals([]);
-      const mixed = hasMixedCurrencies();
-      const mariaBase = mixed ? mariaTotals.usage : 0;
-      const gabrielBase = mixed ? gabrielTotals.usage : 0;
-      const combinedSpent = mariaTotals.totalSpent + gabrielTotals.totalSpent || 0;
-      const mariaShare = mixed ? Math.min(mariaBase, 100) : (combinedSpent ? (mariaTotals.totalSpent / combinedSpent) * 100 : 0);
-      const gabrielShare = mixed ? Math.min(gabrielBase, 100) : (combinedSpent ? (gabrielTotals.totalSpent / combinedSpent) * 100 : 0);
-
-      box.innerHTML = `
-        <article class="person-card">
-          <div class="person-head">
-            <div>
-              <div class="person-name">${mixed ? 'Comparação relativa entre vocês' : 'Distribuição entre vocês'}</div>
-              <div class="person-summary">${mixed ? 'Como as moedas são diferentes, a barra compara o percentual de uso do orçamento de cada um.' : 'Isso ajuda a ver peso relativo no gasto do mês, não só o consolidado total.'}</div>
-            </div>
-          </div>
-          <div class="stack">
-            <div class="share-bar">
-              <div class="share-head">
-                <span>${mixed ? 'Comprometimento relativo do orçamento' : 'Participação no gasto do casal'}</span>
-                <span>${formatPercent(mariaShare)} Maria · ${formatPercent(gabrielShare)} Gabriel</span>
-              </div>
-              <div class="share-track">
-                <span class="share-a" style="width:${mariaShare}%"></span>
-                <span class="share-b" style="width:${gabrielShare}%"></span>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article class="person-card">
-          <div class="person-head">
-            <div>
-              <div class="person-name">Maria</div>
-              <div class="person-summary">Orçamento, gasto e saldo individuais.</div>
-            </div>
-            <div class="badge ${getHealthState(mariaTotals, state.datasets.maria || []).tone}">${getHealthState(mariaTotals, state.datasets.maria || []).badge}</div>
-          </div>
-          <div class="person-metrics">
-            <div class="person-metric"><span>Limite</span><strong>${formatCurrency(mariaTotals.totalLimit, 'maria')}</strong></div>
-            <div class="person-metric"><span>Gasto</span><strong>${formatCurrency(mariaTotals.totalSpent, 'maria')}</strong></div>
-            <div class="person-metric"><span>Saldo</span><strong>${formatCurrency(mariaTotals.totalRemaining, 'maria')}</strong></div>
-          </div>
-        </article>
-
-        <article class="person-card">
-          <div class="person-head">
-            <div>
-              <div class="person-name">Gabriel</div>
-              <div class="person-summary">Orçamento, gasto e saldo individuais.</div>
-            </div>
-            <div class="badge ${getHealthState(gabrielTotals, state.datasets.gabriel || []).tone}">${getHealthState(gabrielTotals, state.datasets.gabriel || []).badge}</div>
-          </div>
-          <div class="person-metrics">
-            <div class="person-metric"><span>Limite</span><strong>${formatCurrency(gabrielTotals.totalLimit, 'gabriel')}</strong></div>
-            <div class="person-metric"><span>Gasto</span><strong>${formatCurrency(gabrielTotals.totalSpent, 'gabriel')}</strong></div>
-            <div class="person-metric"><span>Saldo</span><strong>${formatCurrency(gabrielTotals.totalRemaining, 'gabriel')}</strong></div>
-          </div>
-        </article>
-      `;
-    }
-
-    function renderTable(items) {
-      const body = $('#tableBody');
-      const rows = getRenderableItems(items);
-
-      if (!rows.length) {
-        body.innerHTML = `<tr><td colspan="5" class="empty">Nenhum dado válido encontrado na visão atual.</td></tr>`;
-        return;
-      }
-
-      $('#tableCaption').textContent = isMixedCoupleView()
-        ? 'Moedas diferentes: aqui o painel lista as categorias por pessoa, sem somar euro com real.'
-        : state.activeView === 'casal'
-          ? 'Categorias somadas entre Maria e Gabriel.'
-          : `Categorias do orçamento individual de ${CONFIG.sources[state.activeView]?.label || state.activeView}.`;
-
-      body.innerHTML = [...rows]
-        .sort((a, b) => b.usage - a.usage)
-        .map(item => {
-          const balanceClass = item.exceeded > 0 ? 'bad' : 'good';
-          const usageText = item.usage > 100 ? `${formatPercent(item.usage)} · estourou` : formatPercent(item.usage);
-          const balanceValue = item.exceeded > 0 ? -item.exceeded : item.remaining;
-          const breakdownText = isMixedCoupleView()
-            ? `${CONFIG.sources[item.owner]?.label || item.owner} · uso atual de ${formatPercent(item.usage)} nesta categoria`
-            : state.activeView === 'casal'
-              ? [
-                  item.breakdown?.maria ? `Maria: ${formatCurrency(item.breakdown.maria.spent, 'maria')}` : null,
-                  item.breakdown?.gabriel ? `Gabriel: ${formatCurrency(item.breakdown.gabriel.spent, 'gabriel')}` : null
-                ].filter(Boolean).join(' • ')
-              : `Uso atual de ${formatPercent(item.usage)} nesta categoria`;
-
-          return `
-            <tr>
-              <td>
-                <div class="td-main">
-                  <span>${item.category}</span>
-                  <span class="td-sub">${breakdownText || 'Sem detalhe complementar'}</span>
-                </div>
-              </td>
-              <td>${formatCurrency(item.limit, item.owner || state.activeView)}</td>
-              <td>${formatCurrency(item.spent, item.owner || state.activeView)}</td>
-              <td class="${balanceClass}">${formatCurrency(balanceValue, item.owner || state.activeView)}</td>
-              <td>${usageText}</td>
-            </tr>
-          `;
-        })
-        .join('');
-    }
-
-    function renderBars(items) {
-      const box = $('#barsList');
-      const rows = getRenderableItems(items);
-
-      if (!rows.length) {
-        box.innerHTML = `<div class="empty">Sem categorias para exibir.</div>`;
-        return;
-      }
-
-      box.innerHTML = [...rows]
-        .sort((a, b) => b.usage - a.usage)
-        .slice(0, 10)
-        .map(item => {
-          const className = item.usage >= 100 ? 'bad' : item.usage >= 80 ? 'warn' : '';
-          const width = Math.min(item.usage, 100);
-          const ownerMeta = isMixedCoupleView() ? `${CONFIG.sources[item.owner]?.label || item.owner} · ` : '';
-          return `
-            <article class="bar-item">
-              <div class="bar-top">
-                <div>
-                  <div class="bar-name">${item.category}</div>
-                  <div class="bar-meta">${ownerMeta}${formatCurrency(item.spent, item.owner || state.activeView)} de ${formatCurrency(item.limit, item.owner || state.activeView)}</div>
-                </div>
-                <div class="bar-meta">${formatPercent(item.usage)}</div>
-              </div>
-              <div class="bar-track">
-                <div class="bar-fill ${className}" style="width:${width}%"></div>
-              </div>
-            </article>
-          `;
-        })
-        .join('');
-    }
-
-    function buildInsights(items, totals) {
-      const insights = [];
-
-      if (isMixedCoupleView()) {
-        const allItems = getRenderableItems(items);
-        const topPressure = getTopPressure(allItems);
-        const critical = getCriticalCount(allItems);
-        const nearLimit = getNearLimitCount(allItems);
-        const mariaTotals = state.totals.maria || buildTotals([]);
-        const gabrielTotals = state.totals.gabriel || buildTotals([]);
-        const morePressured = mariaTotals.usage >= gabrielTotals.usage ? 'Maria' : 'Gabriel';
-
-        insights.push({
-          title: 'Leitura correta do casal',
-          text: 'Como vocês usam moedas diferentes, este painel compara pressão relativa e risco por categoria. Somar euro com real sem conversão seria maquiagem, não análise.'
-        });
-
-        insights.push({
-          title: 'Orçamento mais pressionado',
-          text: `${morePressured} está com ${formatPercent(Math.max(mariaTotals.usage, gabrielTotals.usage))} do próprio orçamento comprometido neste recorte.`
-        });
-
-        insights.push({
-          title: 'Leitura de risco',
-          text: critical > 0
-            ? `${critical} categoria(s) já bateram ou passaram do limite considerando os dois orçamentos.`
-            : nearLimit > 0
-              ? `${nearLimit} categoria(s) já passaram de 80% do limite entre Maria e Gabriel.`
-              : 'Nenhuma categoria entrou em faixa crítica ou de atenção por enquanto.'
-        });
-
-        insights.push({
-          title: 'Maior pressão por categoria',
-          text: topPressure
-            ? `${CONFIG.sources[topPressure.owner]?.label || topPressure.owner} está mais pressionado em ${topPressure.category}, com ${formatPercent(topPressure.usage)} do limite usado.`
-            : 'Sem dados suficientes para apontar a categoria mais pressionada.'
-        });
-
-        insights.push({
-          title: 'Saldo por pessoa',
-          text: `Maria ainda preserva ${formatCurrency(mariaTotals.totalRemaining, 'maria')} e Gabriel ${formatCurrency(gabrielTotals.totalRemaining, 'gabriel')} dentro dos próprios limites.`
-        });
-
-        return insights;
-      }
-
-      const topPressure = getTopPressure(items);
-      const biggestSpend = [...items].sort((a, b) => b.spent - a.spent)[0];
-      const largestRemaining = [...items].sort((a, b) => b.remaining - a.remaining)[0];
-      const critical = getCriticalCount(items);
-      const nearLimit = getNearLimitCount(items);
-
-      if (state.activeView === 'casal') {
-        const mariaTotals = state.totals.maria || buildTotals([]);
-        const gabrielTotals = state.totals.gabriel || buildTotals([]);
-        const topSpender = mariaTotals.totalSpent >= gabrielTotals.totalSpent ? 'Maria' : 'Gabriel';
-        insights.push({
-          title: 'Peso relativo do casal',
-          text: `${topSpender} está com o maior gasto absoluto neste recorte. Isso não é julgamento. É só o peso financeiro atual aparecendo.`
-        });
-      }
-
-      insights.push({
-        title: 'Pressão principal',
-        text: topPressure
-          ? `${topPressure.category} é a categoria mais pressionada, com ${formatPercent(topPressure.usage)} do limite usado.`
-          : 'Ainda não há categoria suficiente para leitura de pressão.'
-      });
-
-      insights.push({
-        title: 'Leitura de risco',
-        text: critical > 0
-          ? `${critical} categoria(s) já estouraram o limite. A conversa correta aqui não é estética do painel. É decisão de gasto.`
-          : nearLimit > 0
-            ? `${nearLimit} categoria(s) estão acima de 80% do limite. Ainda há margem, mas ela já começou a apertar.`
-            : 'Nenhuma categoria entrou em faixa crítica ou de atenção por enquanto.'
-      });
-
-      insights.push({
-        title: 'Maior gasto',
-        text: biggestSpend
-          ? `${biggestSpend.category} concentra o maior gasto absoluto: ${formatCurrency(biggestSpend.spent, state.activeView)}.`
-          : 'Sem dados suficientes para apontar a categoria mais pesada.'
-      });
-
-      insights.push({
-        title: 'Maior folga',
-        text: largestRemaining
-          ? `${largestRemaining.category} preserva a maior sobra nominal: ${formatCurrency(largestRemaining.remaining, state.activeView)}.`
-          : 'Sem dados suficientes para apontar sobra relevante.'
-      });
-
-      insights.push({
-        title: 'Leitura consolidada',
-        text: `O recorte atual consumiu ${formatPercent(totals.usage)} do orçamento e ainda mantém ${formatCurrency(totals.totalRemaining, state.activeView)} disponíveis.`
-      });
-
-      return insights.slice(0, 6);
-    }
-
-    function renderInsights(items, totals) {
-      $('#insightsBox').innerHTML = buildInsights(items, totals).map(item => `
-        <article class="insight">
-          <div class="insight-title">${item.title}</div>
-          <div class="insight-text">${item.text}</div>
-        </article>
-      `).join('');
-    }
-
-    function renderWarnings() {
-      const box = $('#warningBox');
-      const entries = Object.entries(state.syncErrors);
-
-      if (!entries.length) {
-        box.style.display = 'none';
-        box.textContent = '';
-        return;
-      }
-
-      const text = entries
-        .map(([key, message]) => `${CONFIG.sources[key]?.label || key}: ${message}`)
-        .join(' | ');
-
-      box.style.display = 'block';
-      box.textContent = `Sincronização parcial. ${text}`;
-    }
-
-    function refreshActiveView() {
-      const items = getActiveItems();
-      const totals = getActiveTotals();
-
-      renderHeader();
-      renderMetricCards(items, totals);
-      renderHealth(items, totals);
-      renderComparison();
-      renderTable(items);
-      renderBars(items);
-      renderInsights(items, totals);
-      renderWarnings();
-
-      document.querySelectorAll('#viewSwitch button').forEach(button => {
-        button.classList.toggle('active', button.dataset.view === state.activeView);
-      });
-    }
-
-    async function loadAllSources() {
-      state.syncErrors = {};
-      state.datasets = {};
-      state.totals = {};
-      $('#statusLine').textContent = 'Atualizando fontes...';
-
-      const entries = Object.entries(CONFIG.sources);
-
-      await Promise.all(entries.map(async ([key, source]) => {
-        try {
-          const candidates = getSourceCandidates(key, source);
-          if (!candidates.length) throw new Error('Nenhuma URL configurada para esta fonte');
-
-          const result = await fetchFirstAvailable(candidates);
-          const rows = parseCSV(result.text);
-          const items = mapRows(rows, key);
-
-          if (!items.length) {
-            throw new Error('Leitura concluída, mas nenhuma linha válida foi encontrada');
-          }
-
-          state.datasets[key] = items;
-          state.totals[key] = buildTotals(items);
-        } catch (error) {
-          state.syncErrors[key] = error.message || 'Falha desconhecida';
-        }
-      }));
-
-      combineDatasets();
-      state.lastLoadedAt = Date.now();
-      refreshActiveView();
-    }
-
-    document.querySelectorAll('#viewSwitch button').forEach(button => {
-      button.addEventListener('click', () => {
-        state.activeView = button.dataset.view;
-        refreshActiveView();
-      });
-    });
-
-    $('#reloadBtn').addEventListener('click', loadAllSources);
-
-    loadAllSources();
-    setInterval(loadAllSources, CONFIG.refreshMinutes * 60 * 1000);
-  </script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
