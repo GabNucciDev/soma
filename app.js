@@ -133,7 +133,7 @@ async function boot() {
         window.location.replace('./index.html');
         return;
       }
-      await hydrateAndRenderApp(state.session.user);
+      await hydrateAndRenderApp(state.session.user, { disableUi: true });
     } else {
       renderAuthState();
     }
@@ -145,21 +145,37 @@ async function boot() {
 
   state.hasBooted = true;
 
-  supabase.auth.onAuthStateChange(async (_event, session) => {
+  supabase.auth.onAuthStateChange(async (event, session) => {
     state.session = session;
 
     if (!state.hasBooted) return;
 
     try {
-      if (session?.user) {
-        if (el.signupView && !el.appView) {
-          window.location.replace('./index.html');
-          return;
-        }
-        await hydrateAndRenderApp(session.user);
-      } else {
+      if (!session?.user || event === 'SIGNED_OUT') {
         resetStateAfterLogout();
         renderAuthState();
+        return;
+      }
+
+      if (el.signupView && !el.appView) {
+        window.location.replace('./index.html');
+        return;
+      }
+
+      const currentUserId = state.user?.id || null;
+      const nextUserId = session.user?.id || null;
+      const shouldHardRefresh =
+        event === 'SIGNED_IN' ||
+        !currentUserId ||
+        currentUserId !== nextUserId;
+
+      if (shouldHardRefresh) {
+        await hydrateAndRenderApp(session.user, { disableUi: true });
+        return;
+      }
+
+      if (nextUserId) {
+        state.user = session.user;
       }
     } catch (error) {
       console.error(error);
@@ -306,12 +322,13 @@ function syncPreferredCurrency() {
   }
 }
 
-async function hydrateAndRenderApp(user) {
+async function hydrateAndRenderApp(user, options = {}) {
   if (!el.appView) return;
 
+  const { disableUi = false } = options;
   const refreshToken = ++state.refreshToken;
   state.isHydrating = true;
-  setActionButtonsDisabled(true);
+  if (disableUi) setActionButtonsDisabled(true);
 
   try {
     await hydrateUser(user);
@@ -323,7 +340,7 @@ async function hydrateAndRenderApp(user) {
   } finally {
     if (refreshToken === state.refreshToken) {
       state.isHydrating = false;
-      setActionButtonsDisabled(false);
+      if (disableUi) setActionButtonsDisabled(false);
     }
   }
 }
