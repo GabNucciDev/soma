@@ -671,11 +671,6 @@ async function joinHousehold() {
 async function createCategoryAndBudget() {
   clearMessages();
 
-  if (state.isHydrating) {
-    showActionFeedback('A tela ainda está atualizando. Tente de novo em 1 ou 2 segundos.', 'info', 'categoriesPanel');
-    return;
-  }
-
   if (!state.activeHouseholdId) {
     showAppMessage('Crie ou entre em uma casa antes.', 'error');
     return;
@@ -747,11 +742,6 @@ async function createCategoryFromOnboarding() {
 async function addTransaction() {
   clearMessages();
 
-  if (state.isHydrating) {
-    showActionFeedback('A tela ainda está atualizando. Tente de novo em 1 ou 2 segundos.', 'info', 'transactionsPanel');
-    return;
-  }
-
   if (!state.activeHouseholdId) {
     showAppMessage('Crie ou entre em uma casa antes.', 'error');
     return;
@@ -764,8 +754,17 @@ async function addTransaction() {
   const description = valueOf(el.txDescription);
   const submitButton = byId('btnAddTransaction');
 
-  if (!occurred_on || !category_id || Number.isNaN(amount) || amount <= 0) {
-    showActionFeedback('Preencha data, categoria e valor válido.', 'error', 'transactionsPanel');
+  if (!occurred_on || Number.isNaN(amount) || amount <= 0) {
+    showActionFeedback('Preencha data e valor válido.', 'error', 'transactionsPanel');
+    return;
+  }
+
+  if (!category_id) {
+    if (state.isHydrating) {
+      showActionFeedback('As categorias ainda estão carregando. Aguarde a lista aparecer e tente de novo.', 'info', 'transactionsPanel');
+    } else {
+      showActionFeedback('Selecione uma categoria antes de salvar o gasto.', 'error', 'transactionsPanel');
+    }
     return;
   }
 
@@ -1027,7 +1026,12 @@ function buildOwnerScopeOptions() {
 
 function renderCategoryOptions() {
   const visibleCategories = getVisibleCategoriesForSelection();
-  const options = ['<option value="">Selecione</option>'];
+  const placeholder = state.isHydrating
+    ? 'Carregando categorias...'
+    : visibleCategories.length === 0
+      ? 'Nenhuma categoria nesta visão'
+      : 'Selecione';
+  const options = [`<option value="">${escapeHtml(placeholder)}</option>`];
   const currentTxCategory = el.txCategory?.value || '';
   const currentEditTxCategory = el.editTxCategory?.value || '';
 
