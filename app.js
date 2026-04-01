@@ -133,7 +133,7 @@ async function boot() {
         window.location.replace('./index.html');
         return;
       }
-      await hydrateAndRenderApp(state.session.user, { disableUi: true });
+      await hydrateAndRenderApp(state.session.user);
     } else {
       renderAuthState();
     }
@@ -170,7 +170,7 @@ async function boot() {
         currentUserId !== nextUserId;
 
       if (shouldHardRefresh) {
-        await hydrateAndRenderApp(session.user, { disableUi: true });
+        await hydrateAndRenderApp(session.user);
         return;
       }
 
@@ -200,6 +200,23 @@ function bindEvents() {
   bindClick('btnOnboardingCreateCategory', createCategoryFromOnboarding);
   bindClick('btnOnboardingGoTransactions', finishOnboarding);
   bindClick('btnCopyHouseholdId', copyActiveHouseholdId);
+
+  document.addEventListener('click', async (event) => {
+    const trigger = event.target?.closest?.('#btnAddTransaction');
+    if (!trigger) return;
+    if (trigger.dataset.boundDirectClick === 'handled') return;
+    if (trigger.disabled) return;
+    event.preventDefault();
+    await addTransaction();
+  }, true);
+
+  const txButton = byId('btnAddTransaction');
+  if (txButton) {
+    txButton.addEventListener('click', () => {
+      txButton.dataset.boundDirectClick = 'handled';
+      queueMicrotask(() => { delete txButton.dataset.boundDirectClick; });
+    }, true);
+  }
 
   document.querySelectorAll('[data-screen-target]').forEach((node) => {
     node.addEventListener('click', () => setActiveScreen(node.dataset.screenTarget));
@@ -322,13 +339,11 @@ function syncPreferredCurrency() {
   }
 }
 
-async function hydrateAndRenderApp(user, options = {}) {
+async function hydrateAndRenderApp(user) {
   if (!el.appView) return;
 
-  const { disableUi = false } = options;
   const refreshToken = ++state.refreshToken;
   state.isHydrating = true;
-  if (disableUi) setActionButtonsDisabled(true);
 
   try {
     await hydrateUser(user);
@@ -340,27 +355,8 @@ async function hydrateAndRenderApp(user, options = {}) {
   } finally {
     if (refreshToken === state.refreshToken) {
       state.isHydrating = false;
-      if (disableUi) setActionButtonsDisabled(false);
     }
   }
-}
-
-function setActionButtonsDisabled(disabled) {
-  [
-    'btnCreateHousehold',
-    'btnJoinHousehold',
-    'btnCreateCategory',
-    'btnAddTransaction',
-    'btnSaveCategoryEdit',
-    'btnSaveTransactionEdit',
-    'btnOnboardingCreateHousehold',
-    'btnOnboardingCreateCategory',
-    'btnOnboardingGoTransactions',
-    'btnCopyHouseholdId',
-  ].forEach((id) => {
-    const node = byId(id);
-    if (node) node.disabled = disabled;
-  });
 }
 
 async function loadAll() {
@@ -675,7 +671,10 @@ async function joinHousehold() {
 async function createCategoryAndBudget() {
   clearMessages();
 
-  if (state.isHydrating) return;
+  if (state.isHydrating) {
+    showActionFeedback('A tela ainda está atualizando. Tente de novo em 1 ou 2 segundos.', 'info', 'categoriesPanel');
+    return;
+  }
 
   if (!state.activeHouseholdId) {
     showAppMessage('Crie ou entre em uma casa antes.', 'error');
@@ -749,7 +748,7 @@ async function addTransaction() {
   clearMessages();
 
   if (state.isHydrating) {
-    showAppMessage('Aguarde a tela terminar de carregar e tente novamente.', 'info');
+    showActionFeedback('A tela ainda está atualizando. Tente de novo em 1 ou 2 segundos.', 'info', 'transactionsPanel');
     return;
   }
 
@@ -766,19 +765,19 @@ async function addTransaction() {
   const submitButton = byId('btnAddTransaction');
 
   if (!occurred_on || !category_id || Number.isNaN(amount) || amount <= 0) {
-    showAppMessage('Preencha data, categoria e valor válido.', 'error');
+    showActionFeedback('Preencha data, categoria e valor válido.', 'error', 'transactionsPanel');
     return;
   }
 
   if (!isDateInYearMonth(occurred_on, state.selectedMonth)) {
-    showAppMessage('A data do lançamento precisa estar dentro do mês de referência selecionado.', 'error');
+    showActionFeedback('A data do lançamento precisa estar dentro do mês de referência selecionado.', 'error', 'transactionsPanel');
     syncTransactionDateWithSelectedMonth(true);
     return;
   }
 
   const category = state.categories.find((item) => item.id === category_id);
   if (!category) {
-    showAppMessage('A categoria escolhida não está disponível nesta visão.', 'error');
+    showActionFeedback('A categoria escolhida não está disponível nesta visão.', 'error', 'transactionsPanel');
     renderCategoryOptions();
     return;
   }
@@ -799,7 +798,7 @@ async function addTransaction() {
     ]);
 
     if (error) {
-      showAppMessage(mapSupabaseError(error), 'error');
+      showActionFeedback(mapSupabaseError(error), 'error', 'transactionsPanel');
       return;
     }
 
@@ -809,17 +808,16 @@ async function addTransaction() {
     await loadBudgetsAndTransactions();
     renderCategoryOptions();
     renderDashboard();
-    showAppMessage('Gasto lançado com sucesso.', 'success');
+    showActionFeedback('Gasto lançado com sucesso.', 'success', 'transactionsPanel');
   } catch (error) {
     console.error(error);
-    showAppMessage('Não foi possível salvar o gasto agora. Tente de novo.', 'error');
+    showActionFeedback('Não foi possível salvar o gasto agora. Tente de novo.', 'error', 'transactionsPanel');
   } finally {
     setButtonLoading(submitButton, false);
   }
 }
 
 function renderAuthState() {
-  setActionButtonsDisabled(false);
   closeModal('categoryModal');
   closeModal('transactionModal');
   closeModal('onboardingModal');
@@ -1642,9 +1640,35 @@ function setButtonLoading(button, isLoading, label = 'Carregando') {
   }
 }
 
+function showActionFeedback(message, type = 'info', panelId) {
+  showAppMessage(message, type);
+
+  const panel = panelId ? byId(panelId) : null;
+  if (!panel) return;
+
+  let box = panel.querySelector('[data-inline-feedback]');
+  if (!box) {
+    box = document.createElement('div');
+    box.dataset.inlineFeedback = 'true';
+    box.style.marginTop = '12px';
+    const actions = panel.querySelector('.form-actions');
+    if (actions) {
+      actions.insertAdjacentElement('afterend', box);
+    } else {
+      panel.appendChild(box);
+    }
+  }
+
+  box.innerHTML = `<div class="message ${type}">${escapeHtml(message)}</div>`;
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 function clearMessages() {
   if (el.authMessage) el.authMessage.innerHTML = '';
   if (el.appMessage) el.appMessage.innerHTML = '';
+  document.querySelectorAll('[data-inline-feedback]').forEach((node) => {
+    node.innerHTML = '';
+  });
 }
 
 function showAuthMessage(message, type = 'info') {
