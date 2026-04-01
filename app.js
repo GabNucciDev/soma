@@ -18,6 +18,9 @@ const state = {
   onboardingAutoShown: false,
   onboardingStep: 1,
   activeScreen: 'management',
+  isHydrating: false,
+  hasBooted: false,
+  refreshToken: 0,
 };
 
 const el = {
@@ -121,39 +124,46 @@ async function boot() {
   if (el.selectedMonth) el.selectedMonth.value = state.selectedMonth;
   if (el.txDate) el.txDate.value = getToday();
 
-  const { data } = await supabase.auth.getSession();
-  state.session = data.session;
+  try {
+    const { data } = await supabase.auth.getSession();
+    state.session = data.session;
 
-  if (state.session?.user) {
-    if (el.signupView && !el.appView) {
-      window.location.replace('./index.html');
-      return;
-    }
-    await hydrateUser(state.session.user);
-    if (el.appView) {
-      await loadAll();
-      renderApp();
-    }
-  } else {
-    renderAuthState();
-  }
-
-  supabase.auth.onAuthStateChange(async (_event, session) => {
-    state.session = session;
-
-    if (session?.user) {
+    if (state.session?.user) {
       if (el.signupView && !el.appView) {
         window.location.replace('./index.html');
         return;
       }
-      await hydrateUser(session.user);
-      if (el.appView) {
-        await loadAll();
-        renderApp();
-      }
+      await hydrateAndRenderApp(state.session.user);
     } else {
-      resetStateAfterLogout();
       renderAuthState();
+    }
+  } catch (error) {
+    console.error(error);
+    renderAuthState();
+    showAuthMessage('Não foi possível iniciar a aplicação.', 'error');
+  }
+
+  state.hasBooted = true;
+
+  supabase.auth.onAuthStateChange(async (_event, session) => {
+    state.session = session;
+
+    if (!state.hasBooted) return;
+
+    try {
+      if (session?.user) {
+        if (el.signupView && !el.appView) {
+          window.location.replace('./index.html');
+          return;
+        }
+        await hydrateAndRenderApp(session.user);
+      } else {
+        resetStateAfterLogout();
+        renderAuthState();
+      }
+    } catch (error) {
+      console.error(error);
+      showAppMessage('Não foi possível atualizar os dados da aplicação.', 'error');
     }
   });
 }
@@ -183,6 +193,7 @@ function bindEvents() {
     el.selectedMonth.addEventListener('change', async (e) => {
       state.selectedMonth = e.target.value;
       await loadBudgetsAndTransactions();
+      renderCategoryOptions();
       renderDashboard();
     });
   }
@@ -292,6 +303,46 @@ function syncPreferredCurrency() {
   if (el.txCurrency && state.profile?.default_currency) {
     el.txCurrency.value = state.profile.default_currency;
   }
+}
+
+async function hydrateAndRenderApp(user) {
+  if (!el.appView) return;
+
+  const refreshToken = ++state.refreshToken;
+  state.isHydrating = true;
+  setActionButtonsDisabled(true);
+
+  try {
+    await hydrateUser(user);
+    await loadAll();
+
+    if (refreshToken !== state.refreshToken) return;
+
+    renderApp();
+  } finally {
+    if (refreshToken === state.refreshToken) {
+      state.isHydrating = false;
+      setActionButtonsDisabled(false);
+    }
+  }
+}
+
+function setActionButtonsDisabled(disabled) {
+  [
+    'btnCreateHousehold',
+    'btnJoinHousehold',
+    'btnCreateCategory',
+    'btnAddTransaction',
+    'btnSaveCategoryEdit',
+    'btnSaveTransactionEdit',
+    'btnOnboardingCreateHousehold',
+    'btnOnboardingCreateCategory',
+    'btnOnboardingGoTransactions',
+    'btnCopyHouseholdId',
+  ].forEach((id) => {
+    const node = byId(id);
+    if (node) node.disabled = disabled;
+  });
 }
 
 async function loadAll() {
@@ -408,8 +459,9 @@ async function loadBudgetsAndTransactions() {
         )
       `)
       .eq('household_id', state.activeHouseholdId)
-      .eq('year_month', firstDay)
-      .order('created_at', { ascending: true }),
+      .lte('year_month', firstDay)
+      .order('year_month', { ascending: false })
+      .order('created_at', { ascending: false }),
 
     supabase
       .from('transactions')
@@ -434,8 +486,49 @@ async function loadBudgetsAndTransactions() {
   if (transactionsRes.error) showAppMessage(mapSupabaseError(transactionsRes.error), 'error');
 
   state.categories = categoriesRes.data || [];
-  state.budgets = budgetsRes.data || [];
+  state.budgets = resolveBudgetsForMonth({
+    categories: state.categories,
+    budgets: budgetsRes.data || [],
+    selectedMonthFirstDay: firstDay,
+  });
   state.transactions = transactionsRes.data || [];
+}
+
+function resolveBudgetsForMonth({ categories, budgets, selectedMonthFirstDay }) {
+  const latestBudgetByCategory = new Map();
+
+  budgets.forEach((budget) => {
+    if (!budget?.category_id) return;
+    if (!latestBudgetByCategory.has(budget.category_id)) {
+      latestBudgetByCategory.set(budget.category_id, budget);
+    }
+  });
+
+  return (categories || []).map((category) => {
+    const latestBudget = latestBudgetByCategory.get(category.id);
+
+    if (latestBudget) {
+      return {
+        ...latestBudget,
+        categories: latestBudget.categories || category,
+        _hasCurrentMonthBudget: latestBudget.year_month === selectedMonthFirstDay,
+        _isCarriedForward: latestBudget.year_month !== selectedMonthFirstDay,
+      };
+    }
+
+    return {
+      id: null,
+      household_id: state.activeHouseholdId,
+      category_id: category.id,
+      owner_user_id: category.owner_user_id,
+      year_month: selectedMonthFirstDay,
+      amount: 0,
+      currency: getDefaultCurrencyForCategory(category),
+      categories: category,
+      _hasCurrentMonthBudget: false,
+      _isCarriedForward: false,
+    };
+  });
 }
 
 async function createHouseholdRecord(name) {
@@ -564,6 +657,8 @@ async function joinHousehold() {
 async function createCategoryAndBudget() {
   clearMessages();
 
+  if (state.isHydrating) return;
+
   if (!state.activeHouseholdId) {
     showAppMessage('Crie ou entre em uma casa antes.', 'error');
     return;
@@ -635,6 +730,8 @@ async function createCategoryFromOnboarding() {
 async function addTransaction() {
   clearMessages();
 
+  if (state.isHydrating) return;
+
   if (!state.activeHouseholdId) {
     showAppMessage('Crie ou entre em uma casa antes.', 'error');
     return;
@@ -677,6 +774,7 @@ async function addTransaction() {
 }
 
 function renderAuthState() {
+  setActionButtonsDisabled(false);
   closeModal('categoryModal');
   closeModal('transactionModal');
   closeModal('onboardingModal');
@@ -696,6 +794,7 @@ function renderApp() {
   if (!el.appView) return;
 
   setButtonLoading(el.btnLogin, false);
+  if (el.selectedMonth) el.selectedMonth.value = state.selectedMonth;
   if (el.authView) el.authView.hidden = true;
   if (el.appView) el.appView.hidden = false;
 
@@ -1211,21 +1310,21 @@ function openEditCategory(categoryId) {
   const category = state.categories.find((item) => item.id === categoryId);
   const budget = state.budgets.find((item) => item.category_id === categoryId);
 
-  if (!category || !budget) {
+  if (!category) {
     showAppMessage('Não foi possível abrir essa categoria para edição.', 'error');
     return;
   }
 
   state.editingCategoryId = categoryId;
-  state.editingBudgetId = budget.id;
+  state.editingBudgetId = budget?.id || null;
 
   if (el.categoryModalTitle) el.categoryModalTitle.textContent = `Editar categoria: ${category.name}`;
   if (el.editCategoryName) el.editCategoryName.value = category.name;
   if (el.editCategoryOwnerScope) {
     el.editCategoryOwnerScope.value = category.scope === 'shared' ? 'shared' : category.owner_user_id;
   }
-  if (el.editCategoryCurrency) el.editCategoryCurrency.value = budget.currency;
-  if (el.editBudgetAmount) el.editBudgetAmount.value = formatNumberForInput(budget.amount);
+  if (el.editCategoryCurrency) el.editCategoryCurrency.value = budget?.currency || getDefaultCurrencyForCategory(category);
+  if (el.editBudgetAmount) el.editBudgetAmount.value = formatNumberForInput(budget?.amount || 0);
 
   openModal('categoryModal');
 }
@@ -1239,8 +1338,10 @@ async function saveCategoryEdit() {
   const ownerScope = el.editCategoryOwnerScope?.value;
   const currency = el.editCategoryCurrency?.value;
   const amount = parseCurrencyInput(valueOf(el.editBudgetAmount));
+  const currentMonthFirstDay = `${state.selectedMonth}-01`;
+  const currentBudget = state.budgets.find((item) => item.category_id === categoryId);
 
-  if (!categoryId || !budgetId) {
+  if (!categoryId) {
     showAppMessage('Edição de categoria inválida.', 'error');
     return;
   }
@@ -1267,13 +1368,28 @@ async function saveCategoryEdit() {
     return;
   }
 
-  const { error: budgetError } = await supabase
-    .from('monthly_budgets')
-    .update({ amount, currency, owner_user_id })
-    .eq('id', budgetId);
+  const shouldUpdateExistingBudget = budgetId && currentBudget?.year_month === currentMonthFirstDay;
 
-  if (budgetError) {
-    showAppMessage(mapSupabaseError(budgetError), 'error');
+  const budgetPayload = {
+    household_id: state.activeHouseholdId,
+    category_id: categoryId,
+    owner_user_id,
+    year_month: currentMonthFirstDay,
+    amount,
+    currency,
+  };
+
+  const budgetRes = shouldUpdateExistingBudget
+    ? await supabase
+        .from('monthly_budgets')
+        .update({ amount, currency, owner_user_id })
+        .eq('id', budgetId)
+    : await supabase
+        .from('monthly_budgets')
+        .insert([budgetPayload]);
+
+  if (budgetRes.error) {
+    showAppMessage(mapSupabaseError(budgetRes.error), 'error');
     return;
   }
 
@@ -1534,6 +1650,14 @@ function getViewCurrency() {
   if (state.selectedView.startsWith('member:')) {
     const userId = state.selectedView.replace('member:', '');
     const member = state.householdUsers.find((item) => item.user_id === userId);
+    return member?.default_currency || state.profile?.default_currency || 'BRL';
+  }
+  return state.profile?.default_currency || 'BRL';
+}
+
+function getDefaultCurrencyForCategory(category) {
+  if (category?.scope === 'personal' && category?.owner_user_id) {
+    const member = state.householdUsers.find((item) => item.user_id === category.owner_user_id);
     return member?.default_currency || state.profile?.default_currency || 'BRL';
   }
   return state.profile?.default_currency || 'BRL';
